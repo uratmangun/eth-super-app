@@ -1,0 +1,1150 @@
+{
+  "version": "2.11",
+  "children": [
+    {
+      "type": "frame",
+      "id": "bi8Au",
+      "x": 0,
+      "y": 0,
+      "name": "0G AI Console Homepage",
+      "clip": true,
+      "width": 1440,
+      "height": 1100,
+      "fill": "#EAF7FF",
+      "layout": "vertical",
+      "children": [
+        {
+          "type": "frame",
+          "id": "GykTh",
+          "layoutPosition": "absolute",
+          "x": 0,
+          "y": 0,
+          "name": "Atmospheric light blue mesh",
+          "width": 1440,
+          "height": 1100
+        },
+        {
+          "type": "frame",
+          "id": "olWER",
+          "name": "Page content",
+          "width": "fill_container",
+          "height": "fill_container",
+          "fill": "#00000000",
+          "layout": "vertical",
+          "gap": 28,
+          "padding": [
+            34,
+            48,
+            42,
+            48
+          ],
+          "children": [
+            {
+              "type": "frame",
+              "id": "B9hQPJ",
+              "name": "Top navigation",
+              "width": "fill_container",
+              "height": 64,
+              "fill": "#FFFFFFB8",
+              "cornerRadius": 28,
+              "stroke": {
+                "thickness": 1,
+                "fill": "#B7DDF2"
+              },
+              "effect": {
+                "type": "shadow",
+                "shadowType": "outer",
+                "color": "#6BB7E633",
+                "offset": {
+                  "x": 0,
+                  "y": 18
+                },
+                "blur": 44,
+                "spread": -28
+              },
+              "padding": [
+                18,
+                22
+              ],
+              "justifyContent": "space_between",
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "xqdrZ",
+                  "name": "Brand mark",
+                  "fill": "#00000000",
+                  "gap": 12,
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "QWDmz",
+                      "name": "0G mark",
+                      "width": 36,
+                      "height": 36,
+                      "fill": "#0EA5E9",
+                      "cornerRadius": 14,
+                      "layout": "vertical",
+                      "justifyContent": "center",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "j1NzB",
+                          "name": "markText",
+                          "fill": "#FFFFFF",
+                          "content": "0G",
+                          "fontFamily": "Geist",
+                          "fontSize": 13,
+                          "fontWeight": "700"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "unr2y",
+                      "name": "Brand copy",
+                      "fill": "#00000000",
+                      "layout": "vertical",
+                      "gap": 2,
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "xc1Wm",
+                          "name": "brandTitle",
+                          "fill": "#0B2535",
+                          "content": "Galileo Compute Console",
+                          "fontFamily": "Geist",
+                          "fontSize": 16,
+                          "fontWeight": "650"
+                        },
+                        {
+                          "type": "text",
+                          "id": "quXbQ",
+                          "name": "brandSub",
+                          "fill": "#5B7F94",
+                          "content": "Wallet-signed LLM access on 0G testnet",
+                          "fontFamily": "Geist",
+                          "fontSize": 12,
+                          "fontWeight": "450"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "qrfrZ",
+                  "name": "Top status",
+                  "fill": "#00000000",
+                  "gap": 10,
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "Y9RJYE",
+                      "name": "Chain pill",
+                      "fill": "#E2F5FF",
+                      "cornerRadius": 18,
+                      "stroke": {
+                        "thickness": 1,
+                        "fill": "#9DD7F5"
+                      },
+                      "gap": 8,
+                      "padding": [
+                        8,
+                        12
+                      ],
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "ellipse",
+                          "id": "TzJVb",
+                          "name": "dot",
+                          "fill": "#10B981",
+                          "width": 8,
+                          "height": 8
+                        },
+                        {
+                          "type": "text",
+                          "id": "lPI0U",
+                          "name": "chainText",
+                          "fill": "#164B63",
+                          "content": "0G Galileo",
+                          "fontFamily": "IBM Plex Mono",
+                          "fontSize": 12,
+                          "fontWeight": "500"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "GcZO2",
+                      "name": "Connect wallet button",
+                      "fill": "#0EA5E9",
+                      "cornerRadius": 20,
+                      "gap": 8,
+                      "padding": [
+                        10,
+                        16
+                      ],
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "u8z9O",
+                          "name": "walletText",
+                          "fill": "#FFFFFF",
+                          "content": "Connect MetaMask",
+                          "fontFamily": "Geist",
+                          "fontSize": 13,
+                          "fontWeight": "650"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "AIszA",
+              "name": "Hero and chat area",
+              "width": "fill_container",
+              "height": 650,
+              "fill": "#00000000",
+              "gap": 28,
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "BNdcT",
+                  "name": "Left narrative",
+                  "width": 440,
+                  "height": "fill_container",
+                  "fill": "#00000000",
+                  "layout": "vertical",
+                  "gap": 24,
+                  "padding": [
+                    46,
+                    10,
+                    24,
+                    4
+                  ],
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "mwlN1",
+                      "name": "Eyebrow",
+                      "fill": "#FFFFFFC7",
+                      "cornerRadius": 18,
+                      "stroke": {
+                        "thickness": 1,
+                        "fill": "#BBDFF2"
+                      },
+                      "gap": 10,
+                      "padding": [
+                        8,
+                        12
+                      ],
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "ellipse",
+                          "id": "geMPg",
+                          "name": "eyebrowDot",
+                          "fill": "#0EA5E9",
+                          "width": 8,
+                          "height": 8
+                        },
+                        {
+                          "type": "text",
+                          "id": "C4ZanC",
+                          "name": "eyebrowText",
+                          "fill": "#2C667F",
+                          "content": "Direct SDK · Testnet",
+                          "fontFamily": "IBM Plex Mono",
+                          "fontSize": 12,
+                          "fontWeight": "500"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "id": "n1Ysal",
+                      "name": "h1",
+                      "fill": "#082F49",
+                      "textGrowth": "fixed-width",
+                      "width": "fill_container",
+                      "content": "Ask the 0G network, not a centralized proxy.",
+                      "lineHeight": 0.95,
+                      "fontFamily": "Geist",
+                      "fontSize": 54,
+                      "fontWeight": "700",
+                      "letterSpacing": -2
+                    },
+                    {
+                      "type": "text",
+                      "id": "tV3Oa",
+                      "name": "body",
+                      "fill": "#476D82",
+                      "textGrowth": "fixed-width",
+                      "width": "fill_container",
+                      "content": "Connect an injected wallet, switch to Galileo, choose an inference provider, and send prompts through wallet-signed compute requests.",
+                      "lineHeight": 1.45,
+                      "fontFamily": "Geist",
+                      "fontSize": 17,
+                      "fontWeight": "430"
+                    },
+                    {
+                      "type": "frame",
+                      "id": "YYdBj",
+                      "name": "Readiness steps",
+                      "width": "fill_container",
+                      "fill": "#00000000",
+                      "layout": "vertical",
+                      "gap": 12,
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "X1OJp",
+                          "name": "step1",
+                          "fill": "#00000000",
+                          "gap": 12,
+                          "padding": [
+                            10,
+                            0
+                          ],
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "frame",
+                              "id": "YjK3e",
+                              "name": "step1Num",
+                              "width": 28,
+                              "height": 28,
+                              "fill": "#D9F1FF",
+                              "cornerRadius": 14,
+                              "layout": "vertical",
+                              "justifyContent": "center",
+                              "alignItems": "center",
+                              "children": [
+                                {
+                                  "type": "text",
+                                  "id": "ApY0f",
+                                  "name": "step1NumText",
+                                  "fill": "#0B6F98",
+                                  "content": "01",
+                                  "fontFamily": "IBM Plex Mono",
+                                  "fontSize": 11,
+                                  "fontWeight": "600"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "text",
+                              "id": "MzrXA",
+                              "name": "step1Text",
+                              "fill": "#183849",
+                              "content": "Connect MetaMask or injected wallet",
+                              "fontFamily": "Geist",
+                              "fontSize": 14,
+                              "fontWeight": "520"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "aEapf",
+                          "name": "step2",
+                          "fill": "#00000000",
+                          "gap": 12,
+                          "padding": [
+                            10,
+                            0
+                          ],
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "frame",
+                              "id": "Njoyq",
+                              "name": "step2Num",
+                              "width": 28,
+                              "height": 28,
+                              "fill": "#D9F1FF",
+                              "cornerRadius": 14,
+                              "layout": "vertical",
+                              "justifyContent": "center",
+                              "alignItems": "center",
+                              "children": [
+                                {
+                                  "type": "text",
+                                  "id": "Hdmoo",
+                                  "name": "step2NumText",
+                                  "fill": "#0B6F98",
+                                  "content": "02",
+                                  "fontFamily": "IBM Plex Mono",
+                                  "fontSize": 11,
+                                  "fontWeight": "600"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "text",
+                              "id": "IRNZ1",
+                              "name": "step2Text",
+                              "fill": "#183849",
+                              "content": "Switch to 0G Galileo testnet",
+                              "fontFamily": "Geist",
+                              "fontSize": 14,
+                              "fontWeight": "520"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "SxGUU",
+                          "name": "step3",
+                          "fill": "#00000000",
+                          "gap": 12,
+                          "padding": [
+                            10,
+                            0
+                          ],
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "frame",
+                              "id": "M3kEc",
+                              "name": "step3Num",
+                              "width": 28,
+                              "height": 28,
+                              "fill": "#D9F1FF",
+                              "cornerRadius": 14,
+                              "layout": "vertical",
+                              "justifyContent": "center",
+                              "alignItems": "center",
+                              "children": [
+                                {
+                                  "type": "text",
+                                  "id": "Q9yxLL",
+                                  "name": "step3NumText",
+                                  "fill": "#0B6F98",
+                                  "content": "03",
+                                  "fontFamily": "IBM Plex Mono",
+                                  "fontSize": 11,
+                                  "fontWeight": "600"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "text",
+                              "id": "GWQ6F",
+                              "name": "step3Text",
+                              "fill": "#183849",
+                              "content": "Fund a provider sub-account and chat",
+                              "fontFamily": "Geist",
+                              "fontSize": 14,
+                              "fontWeight": "520"
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "lHOC9",
+                  "name": "Chat console",
+                  "width": "fill_container",
+                  "height": "fill_container",
+                  "fill": "#FFFFFFE8",
+                  "cornerRadius": 34,
+                  "stroke": {
+                    "thickness": 1,
+                    "fill": "#ADD8EE"
+                  },
+                  "effect": {
+                    "type": "shadow",
+                    "shadowType": "outer",
+                    "color": "#4BAFE533",
+                    "offset": {
+                      "x": 0,
+                      "y": 30
+                    },
+                    "blur": 70,
+                    "spread": -36
+                  },
+                  "layout": "vertical",
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "uf4Ti",
+                      "name": "Chat header",
+                      "width": "fill_container",
+                      "height": 84,
+                      "fill": "#F8FCFF",
+                      "cornerRadius": [
+                        34,
+                        34,
+                        0,
+                        0
+                      ],
+                      "stroke": {
+                        "thickness": {
+                          "bottom": 1
+                        },
+                        "fill": "#D3EAF5"
+                      },
+                      "padding": [
+                        18,
+                        22
+                      ],
+                      "justifyContent": "space_between",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "Q42KC",
+                          "name": "chatTitleWrap",
+                          "fill": "#00000000",
+                          "layout": "vertical",
+                          "gap": 4,
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "j7i4j1",
+                              "name": "chatTitle",
+                              "fill": "#0B2535",
+                              "content": "0G LLM Chatbox",
+                              "fontFamily": "Geist",
+                              "fontSize": 18,
+                              "fontWeight": "700"
+                            },
+                            {
+                              "type": "text",
+                              "id": "j6Ral9",
+                              "name": "chatSub",
+                              "fill": "#5D7D90",
+                              "content": "Prompts will route through wallet-signed Direct Compute",
+                              "fontFamily": "Geist",
+                              "fontSize": 13,
+                              "fontWeight": "430"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "t8i1YO",
+                          "name": "modelPill",
+                          "fill": "#EAF7FF",
+                          "cornerRadius": 20,
+                          "stroke": {
+                            "thickness": 1,
+                            "fill": "#B9DFF1"
+                          },
+                          "gap": 8,
+                          "padding": [
+                            9,
+                            12
+                          ],
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "ellipse",
+                              "id": "EeOir",
+                              "name": "modelDot",
+                              "fill": "#F59E0B",
+                              "width": 7,
+                              "height": 7
+                            },
+                            {
+                              "type": "text",
+                              "id": "P5Nv3",
+                              "name": "modelText",
+                              "fill": "#765219",
+                              "content": "Provider pending",
+                              "fontFamily": "IBM Plex Mono",
+                              "fontSize": 12,
+                              "fontWeight": "500"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "Jb7qS",
+                      "name": "Conversation body",
+                      "width": "fill_container",
+                      "height": "fill_container",
+                      "fill": "#00000000",
+                      "layout": "vertical",
+                      "gap": 18,
+                      "padding": 34,
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "b3AIdX",
+                          "name": "Empty state",
+                          "width": "fill_container",
+                          "height": 250,
+                          "fill": "#F5FBFF",
+                          "cornerRadius": 28,
+                          "stroke": {
+                            "thickness": 1,
+                            "fill": "#CFE8F5"
+                          },
+                          "layout": "vertical",
+                          "gap": 18,
+                          "justifyContent": "center",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "frame",
+                              "id": "fWFYQ",
+                              "name": "orb",
+                              "width": 58,
+                              "height": 58,
+                              "fill": {
+                                "type": "gradient",
+                                "gradientType": "linear",
+                                "enabled": true,
+                                "rotation": 135,
+                                "size": {
+                                  "height": 1
+                                },
+                                "colors": [
+                                  {
+                                    "color": "#38BDF8",
+                                    "position": 0
+                                  },
+                                  {
+                                    "color": "#BAE6FD",
+                                    "position": 1
+                                  }
+                                ]
+                              },
+                              "cornerRadius": 24,
+                              "layout": "vertical",
+                              "justifyContent": "center",
+                              "alignItems": "center",
+                              "children": [
+                                {
+                                  "type": "text",
+                                  "id": "grQ22",
+                                  "name": "orbText",
+                                  "fill": "#FFFFFF",
+                                  "content": "AI",
+                                  "fontFamily": "IBM Plex Mono",
+                                  "fontSize": 15,
+                                  "fontWeight": "700"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "text",
+                              "id": "vckpv",
+                              "name": "emptyTitle",
+                              "fill": "#11384B",
+                              "content": "Connect wallet to start a 0G inference session",
+                              "fontFamily": "Geist",
+                              "fontSize": 22,
+                              "fontWeight": "700"
+                            },
+                            {
+                              "type": "text",
+                              "id": "cH8d3",
+                              "name": "emptyDesc",
+                              "fill": "#648799",
+                              "textGrowth": "fixed-width",
+                              "width": 520,
+                              "content": "The chatbox stays here. Once connected, prompts will use Direct SDK request headers from the selected provider.",
+                              "lineHeight": 1.45,
+                              "textAlign": "center",
+                              "fontFamily": "Geist",
+                              "fontSize": 14,
+                              "fontWeight": "430"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "V9o3t",
+                          "name": "Suggested prompts",
+                          "width": "fill_container",
+                          "height": 98,
+                          "fill": "#00000000",
+                          "gap": 12,
+                          "children": [
+                            {
+                              "type": "frame",
+                              "id": "ZotGb",
+                              "name": "sug1",
+                              "width": "fill_container",
+                              "height": "fill_container",
+                              "fill": "#FFFFFF",
+                              "cornerRadius": 22,
+                              "stroke": {
+                                "thickness": 1,
+                                "fill": "#D5EAF5"
+                              },
+                              "layout": "vertical",
+                              "padding": [
+                                16,
+                                18
+                              ],
+                              "justifyContent": "center",
+                              "children": [
+                                {
+                                  "type": "text",
+                                  "id": "tjytq",
+                                  "name": "sug1Text",
+                                  "fill": "#173D50",
+                                  "textGrowth": "fixed-width",
+                                  "width": "fill_container",
+                                  "content": "Explain my 0G provider balance",
+                                  "fontFamily": "Geist",
+                                  "fontSize": 14,
+                                  "fontWeight": "560"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "frame",
+                              "id": "D7f1K",
+                              "name": "sug2",
+                              "width": "fill_container",
+                              "height": "fill_container",
+                              "fill": "#FFFFFF",
+                              "cornerRadius": 22,
+                              "stroke": {
+                                "thickness": 1,
+                                "fill": "#D5EAF5"
+                              },
+                              "layout": "vertical",
+                              "padding": [
+                                16,
+                                18
+                              ],
+                              "justifyContent": "center",
+                              "children": [
+                                {
+                                  "type": "text",
+                                  "id": "dxZux",
+                                  "name": "sug2Text",
+                                  "fill": "#173D50",
+                                  "textGrowth": "fixed-width",
+                                  "width": "fill_container",
+                                  "content": "Compare available inference models",
+                                  "fontFamily": "Geist",
+                                  "fontSize": 14,
+                                  "fontWeight": "560"
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "s4LSz",
+                      "name": "Prompt input area",
+                      "width": "fill_container",
+                      "height": 132,
+                      "fill": "#F9FDFF",
+                      "cornerRadius": [
+                        0,
+                        0,
+                        34,
+                        34
+                      ],
+                      "stroke": {
+                        "thickness": {
+                          "top": 1
+                        },
+                        "fill": "#D3EAF5"
+                      },
+                      "layout": "vertical",
+                      "gap": 12,
+                      "padding": [
+                        16,
+                        22,
+                        20,
+                        22
+                      ],
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "w6GE8",
+                          "name": "Input box",
+                          "width": "fill_container",
+                          "height": 72,
+                          "fill": "#FFFFFF",
+                          "cornerRadius": 24,
+                          "stroke": {
+                            "thickness": 1,
+                            "fill": "#BBDFF2"
+                          },
+                          "gap": 16,
+                          "padding": [
+                            14,
+                            16
+                          ],
+                          "justifyContent": "space_between",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "f82GWH",
+                              "name": "placeholder",
+                              "fill": "#7A9BAE",
+                              "textGrowth": "fixed-width",
+                              "width": "fill_container",
+                              "content": "Ask 0G Direct Compute anything after wallet connection...",
+                              "fontFamily": "Geist",
+                              "fontSize": 15,
+                              "fontWeight": "430"
+                            },
+                            {
+                              "type": "frame",
+                              "id": "MFfLt",
+                              "name": "Send button",
+                              "width": 104,
+                              "height": 44,
+                              "fill": "#0EA5E9",
+                              "cornerRadius": 18,
+                              "layout": "vertical",
+                              "justifyContent": "center",
+                              "alignItems": "center",
+                              "children": [
+                                {
+                                  "type": "text",
+                                  "id": "Bf2WQ",
+                                  "name": "sendText",
+                                  "fill": "#FFFFFF",
+                                  "content": "Send",
+                                  "fontFamily": "Geist",
+                                  "fontSize": 14,
+                                  "fontWeight": "700"
+                                }
+                              ]
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "ZHyAX",
+                          "name": "Input meta",
+                          "width": "fill_container",
+                          "fill": "#00000000",
+                          "justifyContent": "space_between",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "c1859C",
+                              "name": "leftMeta",
+                              "fill": "#66889A",
+                              "content": "Direct SDK headers: not generated",
+                              "fontFamily": "IBM Plex Mono",
+                              "fontSize": 11,
+                              "fontWeight": "500"
+                            },
+                            {
+                              "type": "text",
+                              "id": "qDgLS",
+                              "name": "rightMeta",
+                              "fill": "#66889A",
+                              "content": "Response verification optional",
+                              "fontFamily": "IBM Plex Mono",
+                              "fontSize": 11,
+                              "fontWeight": "500"
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "eRQ0I",
+              "name": "Operational status row",
+              "width": "fill_container",
+              "height": 248,
+              "fill": "#00000000",
+              "gap": 18,
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "fHfal",
+                  "name": "Wallet status",
+                  "width": "fill_container",
+                  "height": "fill_container",
+                  "fill": "#FFFFFFCC",
+                  "cornerRadius": 28,
+                  "stroke": {
+                    "thickness": 1,
+                    "fill": "#BBDFF2"
+                  },
+                  "layout": "vertical",
+                  "gap": 14,
+                  "padding": 22,
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "kojlV",
+                      "name": "walletLabel",
+                      "fill": "#0B6F98",
+                      "content": "Wallet",
+                      "fontFamily": "IBM Plex Mono",
+                      "fontSize": 12,
+                      "fontWeight": "600"
+                    },
+                    {
+                      "type": "text",
+                      "id": "ZAm33",
+                      "name": "walletHead",
+                      "fill": "#102F42",
+                      "textGrowth": "fixed-width",
+                      "width": "fill_container",
+                      "content": "Injected / MetaMask only",
+                      "fontFamily": "Geist",
+                      "fontSize": 22,
+                      "fontWeight": "700"
+                    },
+                    {
+                      "type": "text",
+                      "id": "SxOYv",
+                      "name": "walletCopy",
+                      "fill": "#5E7F91",
+                      "textGrowth": "fixed-width",
+                      "width": "fill_container",
+                      "content": "The first implementation will skip WalletConnect and rely on browser wallets for signing compute requests.",
+                      "lineHeight": 1.45,
+                      "fontFamily": "Geist",
+                      "fontSize": 14,
+                      "fontWeight": "430"
+                    },
+                    {
+                      "type": "frame",
+                      "id": "uLnmm",
+                      "name": "walletState",
+                      "fill": "#EFF9FF",
+                      "cornerRadius": 18,
+                      "gap": 8,
+                      "padding": [
+                        8,
+                        12
+                      ],
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "ellipse",
+                          "id": "qbKSz",
+                          "name": "walletStateDot",
+                          "fill": "#94A3B8",
+                          "width": 8,
+                          "height": 8
+                        },
+                        {
+                          "type": "text",
+                          "id": "E0Zxao",
+                          "name": "walletStateText",
+                          "fill": "#4C6675",
+                          "content": "Disconnected",
+                          "fontFamily": "IBM Plex Mono",
+                          "fontSize": 12,
+                          "fontWeight": "500"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "Mhefv",
+                  "name": "Chain status",
+                  "width": "fill_container",
+                  "height": "fill_container",
+                  "fill": "#FFFFFFCC",
+                  "cornerRadius": 28,
+                  "stroke": {
+                    "thickness": 1,
+                    "fill": "#BBDFF2"
+                  },
+                  "layout": "vertical",
+                  "gap": 14,
+                  "padding": 22,
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "YMEkm",
+                      "name": "chainLabel",
+                      "fill": "#0B6F98",
+                      "content": "Chain",
+                      "fontFamily": "IBM Plex Mono",
+                      "fontSize": 12,
+                      "fontWeight": "600"
+                    },
+                    {
+                      "type": "text",
+                      "id": "muHZL",
+                      "name": "chainHead",
+                      "fill": "#102F42",
+                      "textGrowth": "fixed-width",
+                      "width": "fill_container",
+                      "content": "0G Galileo Testnet",
+                      "fontFamily": "Geist",
+                      "fontSize": 22,
+                      "fontWeight": "700"
+                    },
+                    {
+                      "type": "text",
+                      "id": "pfUd0",
+                      "name": "chainCopy",
+                      "fill": "#5E7F91",
+                      "textGrowth": "fixed-width",
+                      "width": "fill_container",
+                      "content": "Use chain ID 16602 after RPC verification. The UI should catch wrong-network states before inference starts.",
+                      "lineHeight": 1.45,
+                      "fontFamily": "Geist",
+                      "fontSize": 14,
+                      "fontWeight": "430"
+                    },
+                    {
+                      "type": "frame",
+                      "id": "N8V6W",
+                      "name": "chainMeta",
+                      "width": "fill_container",
+                      "fill": "#00000000",
+                      "layout": "vertical",
+                      "gap": 8,
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "PqE9x",
+                          "name": "rpc",
+                          "fill": "#55778A",
+                          "content": "RPC  https://evmrpc-testnet.0g.ai",
+                          "fontFamily": "IBM Plex Mono",
+                          "fontSize": 11,
+                          "fontWeight": "500"
+                        },
+                        {
+                          "type": "text",
+                          "id": "pCDp5",
+                          "name": "explorer",
+                          "fill": "#55778A",
+                          "content": "Explorer  chainscan-galileo.0g.ai",
+                          "fontFamily": "IBM Plex Mono",
+                          "fontSize": 11,
+                          "fontWeight": "500"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "yAkwb",
+                  "name": "Compute status",
+                  "width": "fill_container",
+                  "height": "fill_container",
+                  "fill": "#0D3B520F",
+                  "cornerRadius": 28,
+                  "stroke": {
+                    "thickness": 1,
+                    "fill": "#9ED5F0"
+                  },
+                  "layout": "vertical",
+                  "gap": 14,
+                  "padding": 22,
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "ylpjn",
+                      "name": "computeLabel",
+                      "fill": "#0B6F98",
+                      "content": "Compute",
+                      "fontFamily": "IBM Plex Mono",
+                      "fontSize": 12,
+                      "fontWeight": "600"
+                    },
+                    {
+                      "type": "text",
+                      "id": "s6jN1J",
+                      "name": "computeHead",
+                      "fill": "#102F42",
+                      "textGrowth": "fixed-width",
+                      "width": "fill_container",
+                      "content": "Direct SDK inference",
+                      "fontFamily": "Geist",
+                      "fontSize": 22,
+                      "fontWeight": "700"
+                    },
+                    {
+                      "type": "text",
+                      "id": "V5iK6",
+                      "name": "computeCopy",
+                      "fill": "#5E7F91",
+                      "textGrowth": "fixed-width",
+                      "width": "fill_container",
+                      "content": "Provider list, metadata, auth headers, and funding state appear here before the chatbox accepts prompts.",
+                      "lineHeight": 1.45,
+                      "fontFamily": "Geist",
+                      "fontSize": 14,
+                      "fontWeight": "430"
+                    },
+                    {
+                      "type": "frame",
+                      "id": "Oyitc",
+                      "name": "funding",
+                      "width": "fill_container",
+                      "height": 44,
+                      "fill": "#E7F6FF",
+                      "cornerRadius": 16,
+                      "padding": [
+                        8,
+                        12
+                      ],
+                      "justifyContent": "space_between",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "kzcFL",
+                          "name": "fundingLabel",
+                          "fill": "#456B7E",
+                          "content": "Provider funds",
+                          "fontFamily": "IBM Plex Mono",
+                          "fontSize": 12,
+                          "fontWeight": "500"
+                        },
+                        {
+                          "type": "text",
+                          "id": "uCFiZ",
+                          "name": "fundingValue",
+                          "fill": "#B45309",
+                          "content": "Needs setup",
+                          "fontFamily": "IBM Plex Mono",
+                          "fontSize": 12,
+                          "fontWeight": "700"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

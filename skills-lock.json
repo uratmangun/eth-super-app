@@ -66,6 +66,11 @@
       "sourceType": "github",
       "computedHash": "08873a3131d3be27bef9bf3304b310b16b44ca6e3561aebe532797be3443f6bd"
     },
+    "privy": {
+      "source": "docs.privy.io",
+      "sourceType": "well-known",
+      "computedHash": "1377b722156f66ab7737f05391ee831042b51e4c926137a57c9896548e63d556"
+    },
     "react-devtools": {
       "source": "callstackincubator/agent-react-devtools",
       "sourceType": "github",

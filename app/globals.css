@@ -6,38 +6,38 @@
 @custom-variant dark (&:is(.dark *));
 
 :root {
-  --background: #071116;
-  --foreground: #f3fbff;
-  --card: #0b171f;
-  --card-foreground: #ebf9ff;
-  --popover: #0b171f;
-  --popover-foreground: #ebf9ff;
-  --primary: #21c7de;
-  --primary-foreground: #042028;
-  --secondary: #0f2530;
-  --secondary-foreground: #d8f6ff;
-  --muted: #10242d;
-  --muted-foreground: #96b4bf;
-  --accent: #14303d;
-  --accent-foreground: #ddf8ff;
+  --background: #eaf7ff;
+  --foreground: #082f49;
+  --card: #ffffff;
+  --card-foreground: #0b2535;
+  --popover: #ffffff;
+  --popover-foreground: #0b2535;
+  --primary: #0ea5e9;
+  --primary-foreground: #ffffff;
+  --secondary: #dff3ff;
+  --secondary-foreground: #164b63;
+  --muted: #e8f6ff;
+  --muted-foreground: #5d7d90;
+  --accent: #d9f1ff;
+  --accent-foreground: #0b4f71;
   --destructive: #f87171;
-  --border: rgba(216, 246, 255, 0.16);
-  --input: rgba(216, 246, 255, 0.2);
-  --ring: rgba(33, 199, 222, 0.5);
-  --chart-1: #22d3ee;
-  --chart-2: #5eead4;
-  --chart-3: #67e8f9;
-  --chart-4: #22d3ee;
+  --border: rgba(14, 116, 144, 0.18);
+  --input: rgba(14, 116, 144, 0.22);
+  --ring: rgba(14, 165, 233, 0.45);
+  --chart-1: #0ea5e9;
+  --chart-2: #38bdf8;
+  --chart-3: #0284c7;
+  --chart-4: #67e8f9;
   --chart-5: #14b8a6;
   --radius: 0.625rem;
-  --sidebar: #0a1620;
-  --sidebar-foreground: #ebf9ff;
-  --sidebar-primary: #21c7de;
-  --sidebar-primary-foreground: #042028;
-  --sidebar-accent: #14303d;
-  --sidebar-accent-foreground: #ddf8ff;
-  --sidebar-border: rgba(216, 246, 255, 0.16);
-  --sidebar-ring: rgba(33, 199, 222, 0.5);
+  --sidebar: #eaf7ff;
+  --sidebar-foreground: #082f49;
+  --sidebar-primary: #0ea5e9;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #d9f1ff;
+  --sidebar-accent-foreground: #0b4f71;
+  --sidebar-border: rgba(14, 116, 144, 0.18);
+  --sidebar-ring: rgba(14, 165, 233, 0.45);
 }
 
 @theme inline {
@@ -85,21 +85,21 @@
 }
 
 html {
-  color-scheme: dark;
+  color-scheme: light;
 }
 
 body {
   background:
-    radial-gradient(circle at top left, rgba(19, 185, 207, 0.18), transparent 34%),
-    radial-gradient(circle at top right, rgba(94, 234, 212, 0.12), transparent 28%),
-    linear-gradient(180deg, #081219 0%, #050a0f 100%);
+    radial-gradient(circle at top left, rgba(186, 230, 253, 0.95), transparent 34%),
+    radial-gradient(circle at top right, rgba(14, 165, 233, 0.18), transparent 28%),
+    linear-gradient(180deg, #eaf7ff 0%, #dff3ff 100%);
   color: var(--foreground);
   font-family: var(--font-sans), sans-serif;
 }
 
 .dark {
-  --background: #071116;
-  --foreground: #f3fbff;
+  --background: #eaf7ff;
+  --foreground: #082f49;
 }
 
 @layer base {
