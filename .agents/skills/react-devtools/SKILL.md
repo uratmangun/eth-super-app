@@ -1,9 +1,13 @@
 ---
-name: react-devtools
-description: React DevTools CLI for AI agents. Use when the user asks you to debug a React or React Native app at runtime, inspect component props/state/hooks, diagnose render performance, profile re-renders, find slow components, or understand why something re-renders. Triggers include "why does this re-render", "inspect the component", "what props does X have", "profile the app", "find slow components", "debug the UI", "check component state", "the app feels slow", or any React runtime debugging task.
 allowed-tools: Bash(agent-react-devtools:*)
+description: React DevTools CLI for AI agents. Use when the user asks you to debug a React or React Native app at runtime, inspect component props/state/hooks, diagnose render performance, profile re-renders, find slow components, or understand why something re-renders. Triggers include "why does this re-render", "inspect the component", "what props does X have", "profile the app", "find slow components", "debug the UI", "check component state", "the app feels slow", or any React runtime debugging task.
+metadata:
+    github-path: packages/agent-react-devtools/skills/react-devtools
+    github-ref: refs/tags/agent-react-devtools@0.4.0
+    github-repo: https://github.com/callstackincubator/agent-react-devtools
+    github-tree-sha: 051f2d29831240a2b81d41ca0983e721d452e58f
+name: react-devtools
 ---
-
 # agent-react-devtools
 
 CLI that connects to a running React or React Native app via the React DevTools protocol and exposes the component tree, props, state, hooks, and profiling data in a token-efficient format.

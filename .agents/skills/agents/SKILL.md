@@ -1,11 +1,19 @@
 ---
-name: agents
+compatibility: Requires internet access and an ElevenLabs API key (ELEVENLABS_API_KEY).
 description: Build voice AI agents with ElevenLabs. Use when creating voice assistants, customer service bots, interactive voice characters, or any real-time voice conversation experience.
 license: MIT
-compatibility: Requires internet access and an ElevenLabs API key (ELEVENLABS_API_KEY).
-metadata: {"openclaw": {"requires": {"env": ["ELEVENLABS_API_KEY"]}, "primaryEnv": "ELEVENLABS_API_KEY"}}
+metadata:
+    github-path: agents
+    github-ref: refs/heads/main
+    github-repo: https://github.com/elevenlabs/skills
+    github-tree-sha: d5d05c01326f5ef4376a4e979bbbe81caeb55573
+    openclaw:
+        primaryEnv: ELEVENLABS_API_KEY
+        requires:
+            env:
+                - ELEVENLABS_API_KEY
+name: agents
 ---
-
 # ElevenLabs Agents Platform
 
 Build voice AI agents with natural conversations, multiple LLM providers, custom tools, and easy web embedding.
@@ -152,13 +160,13 @@ function App({ signedUrl }: { signedUrl: string }) {
 
 | Provider | Models |
 |----------|--------|
-| OpenAI | `gpt-5`, `gpt-5-mini`, `gpt-5-nano`, `gpt-4.1`, `gpt-4.1-mini`, `gpt-4.1-nano`, `gpt-4o`, `gpt-4o-mini`, `gpt-4-turbo` |
+| OpenAI | `gpt-5.4`, `gpt-5`, `gpt-5-mini`, `gpt-5-nano`, `gpt-4.1`, `gpt-4.1-mini`, `gpt-4.1-nano`, `gpt-4o`, `gpt-4o-mini`, `gpt-4-turbo` |
 | Anthropic | `claude-sonnet-4-6`, `claude-sonnet-4-5`, `claude-sonnet-4`, `claude-haiku-4-5`, `claude-3-7-sonnet`, `claude-3-5-sonnet`, `claude-3-haiku` |
 | Google | `gemini-3.1-flash-lite-preview`, `gemini-3.1-pro-preview`, `gemini-3-pro-preview`, `gemini-3-flash-preview`, `gemini-2.5-flash`, `gemini-2.5-flash-lite`, `gemini-2.0-flash`, `gemini-2.0-flash-lite` |
 | ElevenLabs | `glm-45-air-fp8`, `qwen3-30b-a3b`, `qwen35-35b-a3b`, `qwen35-397b-a17b`, `gpt-oss-120b` |
 | Custom | `custom-llm` (bring your own endpoint) |
 
-Use `GET /v1/convai/llm/list` to inspect the current model catalog, including deprecation state, token/context limits, and capability flags such as image-input support.
+Use `GET /v1/convai/llm/list` to inspect the current model catalog, including deprecation state, token/context limits, capability flags such as image-input support, and model-specific reasoning effort support.
 
 **Popular voices:** `JBFqnCBsd6RMkjVDRZzb` (George), `EXAVITQu4vr4xnSDxMaL` (Sarah), `onwK4e9ZLuTAKqWW03F9` (Daniel), `XB0fDUnXU5powFXDhCwa` (Charlotte)
 

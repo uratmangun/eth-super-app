@@ -1,8 +1,12 @@
 ---
-name: hono
 description: Use when building Hono web applications or when the user asks about Hono APIs, routing, middleware, JSX, validation, testing, or streaming. TRIGGER when code imports from 'hono' or 'hono/*', or user mentions Hono. Use `npx hono request` to test endpoints.
+metadata:
+    github-path: skills/hono
+    github-ref: refs/heads/main
+    github-repo: https://github.com/yusukebe/hono-skill
+    github-tree-sha: 16c9105ba9528eaa17a375ee56efb3c2376439ab
+name: hono
 ---
-
 # Hono Skill
 
 Build Hono web applications. This skill provides inline API knowledge for AI. Use `npx hono request` to test endpoints. If the `hono-docs` MCP server is configured, prefer its tools for the latest documentation over the inline reference.

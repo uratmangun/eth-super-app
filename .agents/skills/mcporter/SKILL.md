@@ -1,27 +1,25 @@
 ---
-name: mcporter
-description: Use the mcporter CLI to list, configure, auth, and call MCP servers/tools directly (HTTP or stdio), including ad-hoc servers, config edits, and CLI/type generation.
+description: List, configure, authenticate, call, and inspect MCP servers/tools with mcporter over HTTP or stdio.
 homepage: http://mcporter.dev
 metadata:
-  {
-    "openclaw":
-      {
-        "emoji": "📦",
-        "requires": { "bins": ["mcporter"] },
-        "install":
-          [
-            {
-              "id": "node",
-              "kind": "node",
-              "package": "mcporter",
-              "bins": ["mcporter"],
-              "label": "Install mcporter (node)",
-            },
-          ],
-      },
-  }
+    github-path: skills/mcporter
+    github-ref: refs/tags/v2026.4.29
+    github-repo: https://github.com/steipete/clawdis
+    github-tree-sha: 836036d0ee3b35be50a55a0b2ba359cd62aa2ba2
+    openclaw:
+        emoji: "\U0001F4E6"
+        install:
+            - bins:
+                - mcporter
+              id: node
+              kind: node
+              label: Install mcporter (node)
+              package: mcporter
+        requires:
+            bins:
+                - mcporter
+name: mcporter
 ---
-
 # mcporter
 
 Use `mcporter` to work with MCP servers directly.
