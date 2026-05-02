@@ -1,6 +1,6 @@
 import type { JsonRpcSigner } from "ethers";
 
-export type ZeroGService = {
+export type ZeroGDirectService = {
   provider: string;
   serviceType: string;
   url: string;
@@ -11,28 +11,23 @@ export type ZeroGService = {
   teeSignerAcknowledged: boolean;
 };
 
-export type ZeroGMetadata = {
-  endpoint: string;
-  model: string;
-};
-
-export type ZeroGChatMessage = {
+export type ZeroGDirectMessage = {
   role: "user" | "assistant" | "system";
   content: string;
 };
 
-type ZeroGBroker = {
+type ZeroGDirectBroker = {
   inference: {
     getAccount?: (providerAddress: string) => Promise<{ balance?: bigint }>;
     getRequestHeaders: (providerAddress: string, content?: string) => Promise<{ Authorization: string } & Record<string, string | undefined>>;
-    getServiceMetadata: (providerAddress: string) => Promise<ZeroGMetadata>;
+    getServiceMetadata: (providerAddress: string) => Promise<{ endpoint: string; model: string }>;
     listService: (offset?: number, limit?: number, includeUnacknowledged?: boolean) => Promise<unknown[]>;
     processResponse?: (providerAddress: string, chatID?: string, content?: string) => Promise<boolean | null>;
   };
 };
 
 type ZeroGComputeModule = {
-  createZGComputeNetworkBroker: (signer: JsonRpcSigner) => Promise<ZeroGBroker>;
+  createZGComputeNetworkBroker: (signer: JsonRpcSigner) => Promise<ZeroGDirectBroker>;
 };
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -51,7 +46,7 @@ function getPrice(value: unknown) {
   return typeof value === "bigint" ? value.toString() : String(value ?? "0");
 }
 
-export function normalizeZeroGService(service: unknown): ZeroGService | null {
+export function normalizeZeroGDirectService(service: unknown): ZeroGDirectService | null {
   if (!isRecord(service)) {
     return null;
   }
@@ -76,23 +71,22 @@ export function normalizeZeroGService(service: unknown): ZeroGService | null {
   };
 }
 
-export function isChatbotService(service: ZeroGService) {
-  return service.serviceType.toLowerCase().includes("chat");
-}
-
-export async function createZeroGBroker(signer: JsonRpcSigner) {
+export async function createZeroGDirectBroker(signer: JsonRpcSigner) {
   const { createZGComputeNetworkBroker } = (await import("@0gfoundation/0g-compute-ts-sdk")) as unknown as ZeroGComputeModule;
 
   return createZGComputeNetworkBroker(signer);
 }
 
-export async function listZeroGChatbotServices(broker: ZeroGBroker) {
+export async function listZeroGDirectChatbotServices(broker: ZeroGDirectBroker) {
   const services = await broker.inference.listService(0, 50, true);
 
-  return services.map(normalizeZeroGService).filter((service): service is ZeroGService => Boolean(service)).filter(isChatbotService);
+  return services
+    .map(normalizeZeroGDirectService)
+    .filter((service): service is ZeroGDirectService => Boolean(service))
+    .filter((service) => service.serviceType.toLowerCase().includes("chat"));
 }
 
-export async function getZeroGProviderBalance(broker: ZeroGBroker, providerAddress: string) {
+export async function getZeroGDirectProviderBalance(broker: ZeroGDirectBroker, providerAddress: string) {
   if (!broker.inference.getAccount) {
     return null;
   }
@@ -102,14 +96,14 @@ export async function getZeroGProviderBalance(broker: ZeroGBroker, providerAddre
   return account.balance ?? null;
 }
 
-export async function sendZeroGChatCompletion({
+export async function sendZeroGDirectChatCompletion({
   broker,
   messages,
   model,
   providerAddress,
 }: {
-  broker: ZeroGBroker;
-  messages: ZeroGChatMessage[];
+  broker: ZeroGDirectBroker;
+  messages: ZeroGDirectMessage[];
   model?: string;
   providerAddress: string;
 }) {
@@ -130,7 +124,7 @@ export async function sendZeroGChatCompletion({
 
   if (!response.ok) {
     const errorText = await response.text().catch(() => "");
-    throw new Error(errorText || `0G provider returned ${response.status}`);
+    throw new Error(errorText || `0G Direct provider returned ${response.status}`);
   }
 
   const data = (await response.json()) as {
@@ -141,7 +135,7 @@ export async function sendZeroGChatCompletion({
   const assistantContent = data.choices?.[0]?.message?.content;
 
   if (!assistantContent) {
-    throw new Error("0G provider response did not include assistant content.");
+    throw new Error("0G Direct response did not include assistant content.");
   }
 
   const chatID = response.headers.get("ZG-Res-Key") ?? response.headers.get("zg-res-key") ?? data.chatID ?? data.id;

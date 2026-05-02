@@ -9,12 +9,14 @@ import { z } from "zod";
 
 import { DEFAULT_MODEL, REPO_SYSTEM_PROMPT } from "@/lib/repo-system-prompt";
 import { validateProviderBaseUrl } from "@/lib/provider-url";
+import { getZeroGRouterConfig } from "@/lib/zero-g-router";
 
 const requestSchema = z.object({
+  apiKey: z.string().trim().optional(),
+  baseURL: z.string().trim().optional(),
   messages: z.array(z.unknown()).default([]),
   model: z.string().trim().default(DEFAULT_MODEL),
-  baseURL: z.string().trim().default(""),
-  apiKey: z.string().trim().optional(),
+  providerMode: z.enum(["0g-router-testnet", "custom-openai"]).default("0g-router-testnet"),
   systemPrompt: z.string().optional(),
 });
 
@@ -30,12 +32,25 @@ export async function POST(request: Request) {
     return toValidationResponse("Invalid chat request payload.");
   }
 
-  const { messages, model, baseURL, apiKey, systemPrompt } = parsed.data;
+  const { apiKey, baseURL, messages, model, providerMode, systemPrompt } = parsed.data;
+  const router = getZeroGRouterConfig();
+  const isCustom = providerMode === "custom-openai";
+  let providerBaseUrl = router.baseUrl;
+  let providerApiKey = router.apiKey;
 
-  const validatedBaseUrl = validateProviderBaseUrl(baseURL);
+  if (isCustom) {
+    const validatedBaseUrl = validateProviderBaseUrl(baseURL ?? "");
 
-  if (!validatedBaseUrl.ok) {
-    return toValidationResponse(validatedBaseUrl.error);
+    if (!validatedBaseUrl.ok) {
+      return toValidationResponse(validatedBaseUrl.error);
+    }
+
+    providerBaseUrl = validatedBaseUrl.normalizedUrl;
+    providerApiKey = apiKey?.trim() ?? "";
+  }
+
+  if (!isCustom && !router.configured) {
+    return toValidationResponse("Set ZERO_G_ROUTER_API_KEY in .env.local before sending Router testnet chat requests.", 503);
   }
 
   const validatedMessages = await validateUIMessages<UIMessage>({ messages }).catch(() => null);
@@ -56,9 +71,9 @@ export async function POST(request: Request) {
   }
 
   const provider = createOpenAICompatible({
-    name: "template-provider",
-    baseURL: validatedBaseUrl.normalizedUrl,
-    apiKey: apiKey?.trim() || undefined,
+    name: isCustom ? "custom-openai-compatible" : "0g-router-testnet",
+    baseURL: providerBaseUrl,
+    apiKey: providerApiKey || undefined,
   });
 
   const resolvedSystemPrompt = systemPrompt?.trim() || REPO_SYSTEM_PROMPT;

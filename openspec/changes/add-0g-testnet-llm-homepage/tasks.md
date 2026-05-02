@@ -50,7 +50,9 @@
 - [x] 7.1 Run `pnpm lint` and fix any issues from changed files.
 - [x] 7.2 Run `pnpm typecheck` and fix any TypeScript issues.
 - [x] 7.3 Run `pnpm build` and fix any build/runtime bundling issues.
-- [ ] 7.4 Manually test wallet connection with injected or MetaMask wallet.
-- [ ] 7.5 Manually test wrong-network handling and switch/add 0G Galileo flow.
-- [ ] 7.6 Manually test provider discovery and no-provider or funding-needed states.
-- [ ] 7.7 Manually test a 0G Direct Compute chat prompt when testnet wallet/provider funding is available.
+- [ ] 7.4 Manually test Privy login and wallet connection flow with `NEXT_PUBLIC_PRIVY_APP_ID` configured.
+- [ ] 7.5 Manually test chain switching between 0G Galileo testnet and 0G Mainnet in the wallet context selector.
+- [ ] 7.6 Manually test live Router testnet model loading and Router balance after `ZERO_G_ROUTER_API_KEY` is configured.
+- [ ] 7.7 Manually test a 0G Router testnet chat prompt after `ZERO_G_ROUTER_API_KEY` is configured in `.env.local`.
+- [ ] 7.8 Manually test custom OpenAI-compatible base URL + API key + localStorage persistence flow.
+- [ ] 7.9 Manually test Direct SDK provider loading and chat after wallet funding on 0G Galileo testnet.

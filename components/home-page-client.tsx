@@ -5,16 +5,15 @@ import {
   BotIcon,
   ClipboardCheckIcon,
   CopyIcon,
-  Loader2Icon,
   LogOutIcon,
-  NetworkIcon,
+  SaveIcon,
   WalletIcon,
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useFundWallet, usePrivy, useWallets } from "@privy-io/react-auth";
 import { useSetActiveWallet } from "@privy-io/wagmi";
-import { useBalance, useChainId, useConnect, useConnection, useConnectorClient, useConnectors, useDisconnect, useSwitchChain } from "wagmi";
 import { formatUnits } from "viem";
+import { useBalance, useConnect, useConnection, useConnectorClient, useConnectors, useDisconnect } from "wagmi";
 
 import {
   Conversation,
@@ -31,7 +30,6 @@ import {
   PromptInputSelectContent,
   PromptInputSelectItem,
   PromptInputSelectTrigger,
-  PromptInputSelectValue,
   PromptInputSubmit,
   PromptInputTextarea,
   PromptInputTools,
@@ -40,20 +38,24 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { zeroGChains, zeroGTestnet } from "@/lib/chains";
 import { clientToSigner } from "@/lib/ethers-adapter";
+import type { UiModel } from "@/lib/models";
 import { cn } from "@/lib/utils";
 import {
-  createZeroGBroker,
-  getZeroGProviderBalance,
-  listZeroGChatbotServices,
-  sendZeroGChatCompletion,
-  type ZeroGChatMessage,
-  type ZeroGMetadata,
-  type ZeroGService,
-} from "@/lib/zero-g-compute";
+  createZeroGDirectBroker,
+  getZeroGDirectProviderBalance,
+  listZeroGDirectChatbotServices,
+  sendZeroGDirectChatCompletion,
+  type ZeroGDirectMessage,
+  type ZeroGDirectService,
+} from "@/lib/zero-g-direct";
+
+type ProviderMode = "0g-router-testnet" | "0g-direct" | "custom-openai";
 
 type ChatMessage = {
   id: string;
@@ -61,37 +63,27 @@ type ChatMessage = {
   content: string;
 };
 
-type ComputeStatus = "idle" | "initializing" | "loading-services" | "ready" | "no-provider" | "error";
-
-type ComputeState = {
-  balance: bigint | null;
-  broker: Awaited<ReturnType<typeof createZeroGBroker>> | null;
-  error: string | null;
-  metadata: ZeroGMetadata | null;
-  selectedProvider: ZeroGService | null;
-  services: ZeroGService[];
-  status: ComputeStatus;
+type RouterBalance = {
+  address: string;
+  depositBalanceZeroG: string;
+  totalBalanceZeroG: string;
 };
 
-type ModelOption = {
-  id: string;
-  name: string;
-  source: "router" | "direct";
+type CustomProviderConfig = {
+  apiKey: string;
+  baseURL: string;
+  model: string;
 };
 
 type WalletState = {
   authenticated: boolean;
   effectiveAddress?: string;
-  effectiveChainId: number;
   exportWallet?: (address?: string) => void;
   fundWallet?: (address: string, chainId: number) => void;
   hasPrivy: boolean;
   isWalletReady: boolean;
   loginWithPrivy: () => void;
   logoutWallet: () => void;
-  privyWallet?: {
-    switchChain: (chainId: number) => Promise<void>;
-  };
 };
 
 type LoginMode = {
@@ -102,21 +94,20 @@ type LoginMode = {
   showPrivy: boolean;
 };
 
+const customProviderStorageKey = "eth-super-app.custom-openai-provider";
 const privyAppId = process.env.NEXT_PUBLIC_PRIVY_APP_ID;
 
-const suggestedPrompts = [
-  "Explain my 0G provider balance and what needs setup.",
-  "Compare the available 0G inference models.",
-  "What has to be ready before I can send a Direct Compute prompt?",
-  "Draft a short test prompt for the selected 0G model.",
-];
+const providerLabels: Record<ProviderMode, string> = {
+  "0g-direct": "0G Direct SDK",
+  "0g-router-testnet": "0G Router Testnet",
+  "custom-openai": "Custom OpenAI-compatible",
+};
 
-const routerChatModels: ModelOption[] = [
-  { id: "deepseek/deepseek-chat-v3-0324", name: "DeepSeek Chat V3", source: "router" },
-  { id: "qwen/qwen3-vl-30b-a3b-instruct", name: "Qwen3 VL 30B", source: "router" },
-  { id: "qwen3.6-plus", name: "Qwen3.6 Plus", source: "router" },
-  { id: "zai-org/GLM-5-FP8", name: "GLM-5 FP8", source: "router" },
-  { id: "zai-org/GLM-5.1-FP8", name: "GLM-5.1 FP8", source: "router" },
+const suggestedPrompts = [
+  "Explain the difference between Router and Direct 0G Compute.",
+  "List the live chatbot models available in this provider mode.",
+  "Write a hello-world prompt for the selected model.",
+  "What balance or API key setup does this provider mode require?",
 ];
 
 function shortAddress(address?: string) {
@@ -144,17 +135,51 @@ function getErrorMessage(error: unknown) {
   return error instanceof Error ? error.message : "Unknown error";
 }
 
-function uniqueModelOptions(models: ModelOption[]) {
-  const seen = new Set<string>();
+function extractAssistantTextFromUIMessageStream(streamText: string) {
+  const chunks = streamText
+    .split("\n")
+    .map((line) => line.trim())
+    .filter((line) => line.startsWith("data:"))
+    .map((line) => line.slice(5).trim())
+    .filter((line) => line && line !== "[DONE]");
 
-  return models.filter((model) => {
-    if (seen.has(model.id)) {
-      return false;
+  let assistantText = "";
+
+  for (const chunk of chunks) {
+    try {
+      const payload = JSON.parse(chunk) as { delta?: string; type?: string };
+
+      if (payload.type === "text-delta" && typeof payload.delta === "string") {
+        assistantText += payload.delta;
+      }
+    } catch {
+      continue;
     }
+  }
 
-    seen.add(model.id);
-    return true;
-  });
+  return assistantText.trim();
+}
+
+function loadSavedCustomProvider(): CustomProviderConfig {
+  if (typeof window === "undefined") {
+    return { apiKey: "", baseURL: "", model: "" };
+  }
+
+  const raw = window.localStorage.getItem(customProviderStorageKey);
+  if (!raw) {
+    return { apiKey: "", baseURL: "", model: "" };
+  }
+
+  try {
+    const parsed = JSON.parse(raw) as Partial<CustomProviderConfig>;
+    return {
+      apiKey: parsed.apiKey ?? "",
+      baseURL: parsed.baseURL ?? "",
+      model: parsed.model ?? "",
+    };
+  } catch {
+    return { apiKey: "", baseURL: "", model: "" };
+  }
 }
 
 function StatusDot({ tone }: { tone: "blue" | "green" | "amber" | "slate" | "red" }) {
@@ -197,35 +222,34 @@ function ReadinessCard({
 }
 
 function HomePageContent({ loginMode, walletState }: { loginMode: LoginMode; walletState: WalletState }) {
-  const chainId = useChainId();
   const connection = useConnection();
-  const { connect, error: connectError, status: connectStatus } = useConnect();
+  const { connect } = useConnect();
   const { disconnect } = useDisconnect();
-  const { switchChain, status: switchStatus, error: switchError } = useSwitchChain();
   const { data: connectorClient } = useConnectorClient({ chainId: zeroGTestnet.id });
+
+  const [providerMode, setProviderMode] = useState<ProviderMode>("0g-router-testnet");
   const [selectedChainId, setSelectedChainId] = useState<number>(zeroGTestnet.id);
-  const [compute, setCompute] = useState<ComputeState>({
-    balance: null,
-    broker: null,
-    error: null,
-    metadata: null,
-    selectedProvider: null,
-    services: [],
-    status: "idle",
-  });
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [requestError, setRequestError] = useState<string | null>(null);
   const [copiedAddress, setCopiedAddress] = useState(false);
-  const [selectedModel, setSelectedModel] = useState(routerChatModels[0]?.id ?? "");
-  const [verification, setVerification] = useState<boolean | null>(null);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [modelsConfigured, setModelsConfigured] = useState(false);
+  const [modelsError, setModelsError] = useState<string | null>(null);
+  const [modelsLoading, setModelsLoading] = useState(false);
+  const [routerModels, setRouterModels] = useState<UiModel[]>([]);
+  const [customModels, setCustomModels] = useState<UiModel[]>([]);
+  const [directServices, setDirectServices] = useState<ZeroGDirectService[]>([]);
+  const [directBroker, setDirectBroker] = useState<Awaited<ReturnType<typeof createZeroGDirectBroker>> | null>(null);
+  const [directBalance, setDirectBalance] = useState<bigint | null>(null);
+  const [directError, setDirectError] = useState<string | null>(null);
+  const [selectedModel, setSelectedModel] = useState("");
+  const [customProvider, setCustomProvider] = useState<CustomProviderConfig>(() => loadSavedCustomProvider());
+  const [requestError, setRequestError] = useState<string | null>(null);
+  const [routerBalance, setRouterBalance] = useState<RouterBalance | null>(null);
+  const [routerBalanceMessage, setRouterBalanceMessage] = useState<string | null>(null);
   const [isSending, setIsSending] = useState(false);
 
   const effectiveAddress = walletState.effectiveAddress ?? connection.address;
-  const effectiveChainId = walletState.effectiveChainId || chainId;
   const isWalletReady = walletState.isWalletReady || Boolean(connection.address);
   const selectedChain = zeroGChains.find((chain) => chain.id === selectedChainId) ?? zeroGTestnet;
-  const isCorrectChain = effectiveChainId === selectedChain.id;
-  const isComputeChain = selectedChain.id === zeroGTestnet.id;
   const walletBalance = useBalance({
     address: effectiveAddress as `0x${string}` | undefined,
     chainId: selectedChain.id,
@@ -233,128 +257,197 @@ function HomePageContent({ loginMode, walletState }: { loginMode: LoginMode; wal
       enabled: Boolean(effectiveAddress),
     },
   });
-  const modelOptions = useMemo(
-    () =>
-      uniqueModelOptions([
-        ...compute.services.map((service) => ({
-          id: service.model,
-          name: service.model,
-          source: "direct" as const,
-        })),
-        ...routerChatModels,
-      ]),
-    [compute.services],
-  );
 
-  const currentModel = modelOptions.some((model) => model.id === selectedModel) ? selectedModel : modelOptions[0]?.id ?? "";
+  const activeModels = useMemo(() => {
+    if (providerMode === "custom-openai") {
+      return customModels.filter((model) => model.type === "chatbot" || model.type === "unknown");
+    }
 
-  useEffect(() => {
-    let cancelled = false;
+    if (providerMode === "0g-direct") {
+      return directServices.map((service) => ({
+        contextLength: undefined,
+        id: service.model,
+        maxCompletionTokens: undefined,
+        name: service.model,
+        provider: "0g-direct",
+        providerCount: undefined,
+        providerLabel: shortAddress(service.provider),
+        type: "chatbot",
+      } satisfies UiModel));
+    }
 
-    async function initializeCompute() {
-      if (!connectorClient || !isWalletReady || !isCorrectChain) {
-        setCompute((current) => ({
-          ...current,
-          balance: null,
-          broker: null,
-          error: null,
-          metadata: null,
-          selectedProvider: null,
-          services: [],
-          status: "idle",
-        }));
-        return;
-      }
+    return routerModels.filter((model) => model.type === "chatbot");
+  }, [customModels, directServices, providerMode, routerModels]);
 
-      setCompute((current) => ({ ...current, error: null, status: "initializing" }));
+  const currentModel = activeModels.some((model) => model.id === selectedModel)
+    ? selectedModel
+    : customProvider.model || activeModels[0]?.id || "";
+  const selectedDirectService =
+    providerMode === "0g-direct"
+      ? directServices.find((service) => service.model === currentModel) ?? directServices[0] ?? null
+      : null;
+  const formattedWalletBalance = walletBalance.data
+    ? `${formatUnits(walletBalance.data.value, walletBalance.data.decimals)} ${walletBalance.data.symbol}`
+    : null;
+
+  const loadServerModels = useCallback(
+    async (mode: "0g-router-testnet" | "custom-openai") => {
+      setModelsLoading(true);
+      setModelsError(null);
 
       try {
-        const signer = clientToSigner(connectorClient);
-        const broker = await createZeroGBroker(signer);
-
-        if (cancelled) {
-          return;
-        }
-
-        setCompute((current) => ({ ...current, broker, status: "loading-services" }));
-
-        const services = await listZeroGChatbotServices(broker);
-        const selectedProvider = services[0] ?? null;
-        const [metadata, balance] = selectedProvider
-          ? await Promise.all([
-              broker.inference.getServiceMetadata(selectedProvider.provider).catch(() => null),
-              getZeroGProviderBalance(broker, selectedProvider.provider).catch(() => null),
-            ])
-          : [null, null];
-
-        if (cancelled) {
-          return;
-        }
-
-        setCompute({
-          balance,
-          broker,
-          error: null,
-          metadata,
-          selectedProvider,
-          services,
-          status: selectedProvider ? "ready" : "no-provider",
+        const response = await fetch("/api/models", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            apiKey: mode === "custom-openai" ? customProvider.apiKey : undefined,
+            baseURL: mode === "custom-openai" ? customProvider.baseURL : undefined,
+            providerMode: mode,
+          }),
         });
+
+        if (!response.ok) {
+          throw new Error(`Model request failed with status ${response.status}`);
+        }
+
+        const payload = (await response.json()) as {
+          configured: boolean;
+          data: UiModel[];
+          message: string | null;
+        };
+
+        setModelsConfigured(payload.configured);
+        setModelsError(payload.message);
+
+        if (mode === "custom-openai") {
+          setCustomModels(payload.data ?? []);
+        } else {
+          setRouterModels(payload.data ?? []);
+        }
       } catch (error) {
-        if (cancelled) {
-          return;
-        }
+        setModelsConfigured(false);
+        setModelsError(getErrorMessage(error));
 
-        setCompute({
-          balance: null,
-          broker: null,
-          error: getErrorMessage(error),
-          metadata: null,
-          selectedProvider: null,
-          services: [],
-          status: "error",
-        });
+        if (mode === "custom-openai") {
+          setCustomModels([]);
+        } else {
+          setRouterModels([]);
+        }
+      } finally {
+        setModelsLoading(false);
       }
+    },
+    [customProvider.apiKey, customProvider.baseURL],
+  );
+
+  const loadRouterBalance = useCallback(async () => {
+    try {
+      const response = await fetch("/api/router-balance", { cache: "no-store" });
+      const payload = (await response.json()) as {
+        configured: boolean;
+        data: RouterBalance | null;
+        message: string | null;
+      };
+      setRouterBalance(payload.data);
+      setRouterBalanceMessage(payload.message);
+    } catch (error) {
+      setRouterBalance(null);
+      setRouterBalanceMessage(getErrorMessage(error));
+    }
+  }, []);
+
+  const loadDirectServices = useCallback(async () => {
+    if (!connectorClient || !isWalletReady || selectedChain.id !== zeroGTestnet.id) {
+      setDirectServices([]);
+      setDirectBroker(null);
+      setDirectBalance(null);
+      setDirectError("Connect a wallet on 0G Galileo testnet to load Direct SDK services.");
+      return;
     }
 
-    void initializeCompute();
+    setModelsLoading(true);
+    setDirectError(null);
 
-    return () => {
-      cancelled = true;
-    };
-  }, [connectorClient, isWalletReady, isCorrectChain]);
+    try {
+      const broker = await createZeroGDirectBroker(clientToSigner(connectorClient));
+      const services = await listZeroGDirectChatbotServices(broker);
+      const selectedService = services[0] ?? null;
+      const balance = selectedService
+        ? await getZeroGDirectProviderBalance(broker, selectedService.provider).catch(() => null)
+        : null;
+
+      setDirectBroker(broker);
+      setDirectServices(services);
+      setDirectBalance(balance);
+      setModelsConfigured(true);
+    } catch (error) {
+      setDirectBroker(null);
+      setDirectServices([]);
+      setDirectBalance(null);
+      setDirectError(getErrorMessage(error));
+      setModelsConfigured(false);
+    } finally {
+      setModelsLoading(false);
+    }
+  }, [connectorClient, isWalletReady, selectedChain.id]);
 
   const blockingReason = useMemo(() => {
-    if (!isWalletReady) {
-      return loginMode.showPrivy ? "Log in with Privy email or wallet auth before sending prompts." : "Connect a wallet before sending prompts.";
+    if (providerMode === "0g-direct") {
+      if (!isWalletReady) {
+        return "Connect a Privy wallet before using 0G Direct SDK mode.";
+      }
+
+      if (selectedChain.id !== zeroGTestnet.id) {
+        return "Direct SDK mode currently targets 0G Galileo testnet. Switch the chain selector to Galileo.";
+      }
+
+      if (directError) {
+        return directError;
+      }
+
+      if (!directBroker || !selectedDirectService) {
+        return "Load a Direct chatbot provider before sending prompts.";
+      }
+
+      return null;
     }
 
-    if (!isComputeChain) {
-      return "0G Direct Compute is currently wired to Galileo testnet. Switch the selector back to Galileo before sending prompts.";
+    if (providerMode === "custom-openai") {
+      if (!customProvider.baseURL.trim()) {
+        return "Add a valid custom OpenAI-compatible base URL before sending prompts.";
+      }
+
+      if (modelsLoading) {
+        return "Loading models for the selected provider mode.";
+      }
+
+      if (!currentModel) {
+        return "No model selected. Load models from the custom endpoint or enter a fallback model in the custom provider settings.";
+      }
+
+      return null;
     }
 
-    if (!isCorrectChain) {
-      return `Switch to ${selectedChain.name} before sending prompts.`;
+    if (!modelsConfigured) {
+      return "Set ZERO_G_ROUTER_API_KEY in .env.local to enable 0G Router testnet chat and model loading.";
     }
 
-    if (compute.status === "initializing" || compute.status === "loading-services") {
-      return "0G Direct Compute is still loading provider readiness.";
+    if (modelsLoading) {
+      return "Loading models for the selected provider mode.";
     }
 
-    if (compute.status === "no-provider") {
-      return "No chatbot inference provider is available on the connected 0G testnet.";
+    if (modelsError) {
+      return modelsError;
     }
 
-    if (compute.status === "error") {
-      return compute.error ?? "0G Direct Compute failed to initialize.";
-    }
-
-    if (!compute.broker || !compute.selectedProvider) {
-      return "Select an available 0G inference provider before sending prompts.";
+    if (!currentModel) {
+      return "No chatbot models are available for the selected provider mode.";
     }
 
     return null;
-  }, [compute, isComputeChain, isCorrectChain, isWalletReady, loginMode.showPrivy, selectedChain.name]);
+  }, [currentModel, customProvider.baseURL, directBroker, directError, isWalletReady, modelsConfigured, modelsError, modelsLoading, providerMode, selectedChain.id, selectedDirectService]);
 
   const handleCopyAddress = useCallback(async () => {
     if (!effectiveAddress) {
@@ -366,18 +459,9 @@ function HomePageContent({ loginMode, walletState }: { loginMode: LoginMode; wal
     window.setTimeout(() => setCopiedAddress(false), 1600);
   }, [effectiveAddress]);
 
-  const handleSwitchSelectedChain = useCallback(async () => {
-    if (!isWalletReady || isCorrectChain) {
-      return;
-    }
-
-    if (walletState.privyWallet) {
-      await walletState.privyWallet.switchChain(selectedChain.id);
-      return;
-    }
-
-    switchChain({ chainId: selectedChain.id });
-  }, [isCorrectChain, isWalletReady, selectedChain.id, switchChain, walletState.privyWallet]);
+  const handleSaveCustomProvider = useCallback(() => {
+    window.localStorage.setItem(customProviderStorageKey, JSON.stringify(customProvider));
+  }, [customProvider]);
 
   const handleSubmitPrompt = useCallback(
     async ({ text }: { text: string }) => {
@@ -387,8 +471,8 @@ function HomePageContent({ loginMode, walletState }: { loginMode: LoginMode; wal
         return;
       }
 
-      if (blockingReason || !compute.broker || !compute.selectedProvider) {
-        setRequestError(blockingReason ?? "0G Direct Compute is not ready.");
+      if (blockingReason || !currentModel) {
+        setRequestError(blockingReason ?? "Selected provider is not ready.");
         return;
       }
 
@@ -402,44 +486,83 @@ function HomePageContent({ loginMode, walletState }: { loginMode: LoginMode; wal
       setMessages(nextMessages);
       setIsSending(true);
       setRequestError(null);
-      setVerification(null);
 
       try {
-        const zeroGMessages: ZeroGChatMessage[] = nextMessages.map((message) => ({
-          content: message.content,
-          role: message.role,
-        }));
-        const result = await sendZeroGChatCompletion({
-          broker: compute.broker,
-          messages: zeroGMessages,
-          model: currentModel,
-          providerAddress: compute.selectedProvider.provider,
+        if (providerMode === "0g-direct") {
+          if (!directBroker || !selectedDirectService) {
+            throw new Error("Direct SDK provider is not ready.");
+          }
+
+          const directMessages: ZeroGDirectMessage[] = nextMessages.map((message) => ({
+            content: message.content,
+            role: message.role,
+          }));
+          const result = await sendZeroGDirectChatCompletion({
+            broker: directBroker,
+            messages: directMessages,
+            model: currentModel,
+            providerAddress: selectedDirectService.provider,
+          });
+
+          setMessages((current) => [...current, { content: result.content, id: crypto.randomUUID(), role: "assistant" }]);
+          return;
+        }
+
+        const response = await fetch("/api/chat", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            apiKey: providerMode === "custom-openai" ? customProvider.apiKey : undefined,
+            baseURL: providerMode === "custom-openai" ? customProvider.baseURL : undefined,
+            messages: nextMessages.map((message) => ({
+              id: message.id,
+              parts: [{ text: message.content, type: "text" }],
+              role: message.role,
+            })),
+            model: currentModel,
+            providerMode,
+          }),
         });
 
-        setMessages((current) => [
-          ...current,
-          {
-            content: result.content,
-            id: crypto.randomUUID(),
-            role: "assistant",
-          },
-        ]);
-        setVerification(result.verified);
+        if (!response.ok) {
+          const payload = (await response.json().catch(() => null)) as { error?: string } | null;
+          throw new Error(payload?.error || `Chat request failed with status ${response.status}`);
+        }
+
+        const reader = response.body?.getReader();
+        if (!reader) {
+          throw new Error("Response stream was empty.");
+        }
+
+        const decoder = new TextDecoder();
+        let aggregated = "";
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) {
+            break;
+          }
+
+          aggregated += decoder.decode(value, { stream: true });
+        }
+
+        const assistantText = extractAssistantTextFromUIMessageStream(aggregated);
+
+        if (!assistantText) {
+          throw new Error("Provider did not return assistant text.");
+        }
+
+        setMessages((current) => [...current, { content: assistantText, id: crypto.randomUUID(), role: "assistant" }]);
       } catch (error) {
         setRequestError(getErrorMessage(error));
       } finally {
         setIsSending(false);
       }
     },
-    [blockingReason, compute.broker, compute.selectedProvider, currentModel, isSending, messages],
+    [blockingReason, currentModel, customProvider.apiKey, customProvider.baseURL, directBroker, isSending, messages, providerMode, selectedDirectService],
   );
-
-  const providerLabel = currentModel || compute.metadata?.model || compute.selectedProvider?.model || "Provider pending";
-  const providerTone = compute.status === "ready" ? "green" : compute.status === "error" || compute.status === "no-provider" ? "red" : "amber";
-  const walletStatus = isWalletReady ? shortAddress(effectiveAddress) : connectStatus === "pending" ? "Connecting" : "Disconnected";
-  const formattedWalletBalance = walletBalance.data
-    ? `${formatUnits(walletBalance.data.value, walletBalance.data.decimals)} ${walletBalance.data.symbol}`
-    : null;
 
   return (
     <main className="relative min-h-[100dvh] overflow-hidden bg-[radial-gradient(circle_at_20%_10%,rgba(186,230,253,0.95),transparent_32%),radial-gradient(circle_at_84%_4%,rgba(14,165,233,0.18),transparent_30%),linear-gradient(180deg,#eaf7ff_0%,#dff3ff_100%)] px-4 py-5 text-slate-950 md:px-8 md:py-8">
@@ -447,43 +570,40 @@ function HomePageContent({ loginMode, walletState }: { loginMode: LoginMode; wal
       <div className="relative mx-auto flex w-full max-w-7xl flex-col gap-7">
         <header className="flex flex-col gap-4 rounded-[2rem] border border-sky-200 bg-white/70 p-4 shadow-[0_24px_70px_-48px_rgba(14,116,144,0.55)] backdrop-blur md:flex-row md:items-center md:justify-between md:px-5">
           <div className="flex items-center gap-4">
-            <div className="flex size-12 items-center justify-center rounded-2xl bg-sky-500 font-mono text-base font-bold text-white shadow-[0_18px_38px_-24px_rgba(2,132,199,0.85)]">
-              0G
-            </div>
+            <div className="flex size-12 items-center justify-center rounded-2xl bg-sky-500 font-mono text-base font-bold text-white shadow-[0_18px_38px_-24px_rgba(2,132,199,0.85)]">0G</div>
             <div>
-              <h1 className="text-xl font-semibold tracking-tight md:text-2xl">Galileo Compute Console</h1>
-              <p className="text-sm text-slate-600 md:text-base">Wallet-signed LLM access on 0G testnet</p>
+              <h1 className="text-xl font-semibold tracking-tight md:text-2xl">0G AI Console</h1>
+              <p className="text-sm text-slate-600 md:text-base">Router, Direct SDK, and custom OpenAI-compatible inference</p>
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            <div className="inline-flex items-center gap-2 rounded-full border border-sky-200 bg-sky-50 px-2 py-1.5">
-              <StatusDot tone={isCorrectChain ? "green" : isWalletReady ? "red" : "slate"} />
-              <Select onValueChange={(value) => setSelectedChainId(Number(value))} value={String(selectedChain.id)}>
-                <SelectTrigger className="h-6 border-none bg-transparent px-1 py-0 font-mono text-xs text-sky-950 shadow-none">
-                  <span>{selectedChain.name}</span>
-                </SelectTrigger>
-                <SelectContent>
-                  {zeroGChains.map((chain) => (
-                    <SelectItem key={chain.id} value={String(chain.id)}>
-                      {chain.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+            <Select onValueChange={(value) => setProviderMode(value as ProviderMode)} value={providerMode}>
+              <SelectTrigger className="rounded-full border-sky-200 bg-sky-50 px-3 py-2 font-mono text-xs text-sky-950 shadow-none">
+                <span>{providerLabels[providerMode]}</span>
+              </SelectTrigger>
+              <SelectContent>
+                {Object.entries(providerLabels).map(([value, label]) => (
+                  <SelectItem key={value} value={value}>
+                    {label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select onValueChange={(value) => setSelectedChainId(Number(value))} value={String(selectedChain.id)}>
+              <SelectTrigger className="rounded-full border-sky-200 bg-sky-50 px-3 py-2 font-mono text-xs text-sky-950 shadow-none">
+                <span>{selectedChain.name}</span>
+              </SelectTrigger>
+              <SelectContent>
+                {zeroGChains.map((chain) => (
+                  <SelectItem key={chain.id} value={String(chain.id)}>
+                    {chain.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
             {isWalletReady ? (
               <>
-                <Button
-                  className="rounded-full bg-sky-500 px-4 text-white hover:bg-sky-600"
-                  onClick={() => {
-                    if (walletState.authenticated) {
-                      walletState.logoutWallet();
-                      return;
-                    }
-
-                    disconnect();
-                  }}
-                >
+                <Button className="rounded-full bg-sky-500 px-4 text-white hover:bg-sky-600" onClick={() => (walletState.authenticated ? walletState.logoutWallet() : disconnect())}>
                   <LogOutIcon className="size-4" />
                   {shortAddress(effectiveAddress)}
                 </Button>
@@ -520,29 +640,11 @@ function HomePageContent({ loginMode, walletState }: { loginMode: LoginMode; wal
           <aside className="flex flex-col gap-6 py-4 lg:py-12">
             <Badge className="w-fit gap-2 rounded-full border-sky-200 bg-white/70 px-3 py-2 font-mono text-xs text-sky-800" variant="outline">
               <StatusDot tone="blue" />
-              Direct SDK · {selectedChain.testnet ? "Testnet" : "Mainnet"}
+              {providerLabels[providerMode]}
             </Badge>
             <div className="space-y-5">
-              <h2 className="max-w-[9ch] text-5xl font-black leading-[0.95] tracking-[-0.06em] text-slate-950 md:text-7xl">
-                Ask the 0G network, not a centralized proxy.
-              </h2>
-              <p className="max-w-xl text-lg leading-8 text-slate-600">
-                Log in, switch to Galileo, choose an inference provider, and send prompts through wallet-signed compute requests.
-              </p>
-            </div>
-            <div className="grid gap-5 text-sm text-slate-800">
-              {[
-                loginMode.showPrivy ? "Log in with Privy using email, wallet, or passkey" : "Connect MetaMask or injected wallet",
-                "Switch to 0G Galileo testnet",
-                "Fund a provider sub-account and chat",
-              ].map((step, index) => (
-                <div className="flex items-center gap-4" key={step}>
-                  <span className="flex size-8 items-center justify-center rounded-full bg-sky-100 font-mono text-xs font-bold text-sky-700">
-                    {String(index + 1).padStart(2, "0")}
-                  </span>
-                  <span>{step}</span>
-                </div>
-              ))}
+              <h2 className="max-w-[9ch] text-5xl font-black leading-[0.95] tracking-[-0.06em] text-slate-950 md:text-7xl">Choose your inference rail.</h2>
+              <p className="max-w-xl text-lg leading-8 text-slate-600">Use the shared 0G Router, wallet-signed Direct providers, or your own OpenAI-compatible endpoint without changing the chat surface.</p>
             </div>
           </aside>
 
@@ -550,39 +652,34 @@ function HomePageContent({ loginMode, walletState }: { loginMode: LoginMode; wal
             <CardHeader className="border-b border-sky-100 bg-white/65 px-6 py-6">
               <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
                 <div>
-                  <CardTitle className="text-2xl tracking-tight text-slate-950">0G LLM Chatbox</CardTitle>
-                  <p className="mt-1 text-sm text-slate-600">Prompts route through wallet-signed Direct Compute when readiness is complete.</p>
+                  <CardTitle className="text-2xl tracking-tight text-slate-950">Multi-provider Chatbox</CardTitle>
+                  <p className="mt-1 text-sm text-slate-600">The model selector stays visible and follows the selected provider mode.</p>
                 </div>
                 <Badge className="w-fit max-w-full gap-2 rounded-full border-sky-200 bg-sky-50 px-3 py-2 font-mono text-xs text-slate-800" variant="outline">
-                  <StatusDot tone={providerTone} />
-                  <span className="max-w-full break-all">{providerLabel}</span>
+                  <StatusDot tone={activeModels.length > 0 ? "green" : modelsLoading ? "amber" : "red"} />
+                  <span className="max-w-full break-all">{currentModel || "No model loaded"}</span>
                 </Badge>
               </div>
               {blockingReason ? (
                 <Alert className="border-amber-200 bg-amber-50/70 text-amber-950">
                   <AlertCircleIcon className="size-4" />
-                  <AlertTitle>Readiness blocked</AlertTitle>
+                  <AlertTitle>Provider readiness</AlertTitle>
                   <AlertDescription>{blockingReason}</AlertDescription>
                 </Alert>
               ) : null}
               {requestError ? (
                 <Alert className="border-rose-200 bg-rose-50/80 text-rose-950">
                   <AlertCircleIcon className="size-4" />
-                  <AlertTitle>Inference request failed</AlertTitle>
+                  <AlertTitle>Chat request failed</AlertTitle>
                   <AlertDescription>{requestError}</AlertDescription>
                 </Alert>
               ) : null}
             </CardHeader>
-
             <CardContent className="flex min-h-[620px] flex-col gap-0 p-0">
               <Conversation className="min-h-0 flex-1">
                 <ConversationContent>
                   {messages.length === 0 ? (
-                    <ConversationEmptyState
-                      description="Once connected, prompts will use Direct SDK request headers from the selected provider."
-                      icon={<BotIcon className="size-5" />}
-                      title="Connect wallet to start a 0G inference session"
-                    >
+                    <ConversationEmptyState description="Select Router, Direct, or Custom mode; then pick a model below." icon={<BotIcon className="size-5" />} title="One prompt input, three provider modes">
                       <div className="grid w-full max-w-3xl gap-3 md:grid-cols-2">
                         {suggestedPrompts.map((prompt) => (
                           <Button
@@ -599,7 +696,6 @@ function HomePageContent({ loginMode, walletState }: { loginMode: LoginMode; wal
                       </div>
                     </ConversationEmptyState>
                   ) : null}
-
                   {messages.map((message) => (
                     <Message from={message.role} key={message.id}>
                       <MessageContent>
@@ -610,133 +706,112 @@ function HomePageContent({ loginMode, walletState }: { loginMode: LoginMode; wal
                 </ConversationContent>
                 <ConversationScrollButton />
               </Conversation>
-
               <Separator className="bg-sky-100" />
-
               <div className="space-y-3 bg-white/70 p-5">
                 <PromptInput onSubmit={handleSubmitPrompt}>
                   <PromptInputBody>
-                    <PromptInputTextarea disabled={isSending} placeholder="Ask 0G Direct Compute anything after wallet connection..." />
+                    <PromptInputTextarea disabled={isSending} placeholder="Ask the selected provider mode anything..." />
                   </PromptInputBody>
                   <PromptInputFooter>
                     <PromptInputTools>
                       <PromptInputSelect onValueChange={(value) => setSelectedModel(String(value))} value={currentModel}>
                         <PromptInputSelectTrigger className="min-w-0 max-w-[min(26rem,calc(100vw-8rem))] rounded-md px-2.5 text-xs text-slate-600">
-                          <PromptInputSelectValue placeholder="Select model" />
+                          <span className="truncate">{currentModel || "Select model"}</span>
                         </PromptInputSelectTrigger>
                         <PromptInputSelectContent>
-                          {modelOptions.map((model) => (
+                          {activeModels.map((model) => (
                             <PromptInputSelectItem key={model.id} value={model.id}>
                               <div className="flex min-w-0 flex-col gap-1">
-                                <span className="truncate font-medium">{model.name}</span>
-                                <span className="text-xs text-muted-foreground">
-                                  {model.source === "direct" ? "0G Direct provider" : "0G Router catalog"}
-                                </span>
+                                <span className="truncate font-medium">{model.id}</span>
+                                <span className="text-xs text-muted-foreground">{model.providerLabel}</span>
                               </div>
                             </PromptInputSelectItem>
                           ))}
                         </PromptInputSelectContent>
                       </PromptInputSelect>
-                      <span className="font-mono text-xs text-slate-500">
-                        Direct SDK headers: {compute.status === "ready" ? "ready" : "not generated"}
-                      </span>
+                      <span className="font-mono text-xs text-slate-500">Models: {activeModels.length}</span>
                     </PromptInputTools>
                     <PromptInputSubmit disabled={Boolean(blockingReason) || isSending} status={isSending ? "streaming" : "ready"} />
                   </PromptInputFooter>
                 </PromptInput>
-                <div className="flex flex-wrap items-center justify-between gap-2 font-mono text-xs text-slate-500">
-                  <span>Response verification: {verification === null ? "optional" : verification ? "valid" : "not verified"}</span>
-                  <span className="break-all">{compute.metadata?.endpoint ? `Endpoint ${compute.metadata.endpoint}` : "Endpoint pending"}</span>
-                </div>
               </div>
             </CardContent>
           </Card>
         </section>
 
         <section className="grid gap-5 lg:grid-cols-3">
-          <ReadinessCard eyebrow="Wallet" title={loginMode.showPrivy ? "Privy wallet access" : "Injected / MetaMask only"}>
-            <p>
-              {loginMode.showPrivy
-                ? "Privy can onboard users with email, passkeys, Google, and wallets while still supporting 0G Galileo as an EVM chain."
-                : "The fallback implementation skips WalletConnect and relies on browser wallets for signing compute requests."}
-            </p>
-            <div className="mt-5 flex flex-wrap gap-2">
-              <Badge className="gap-2 rounded-full bg-sky-50 px-3 py-2 font-mono text-xs text-slate-700" variant="secondary">
-                <StatusDot tone={isWalletReady ? "green" : connectStatus === "pending" ? "amber" : "slate"} />
-                {walletStatus}
-              </Badge>
-              {effectiveAddress ? (
-                <Button className="h-8 rounded-full border-sky-200 bg-white/80 px-3 font-mono text-xs text-slate-700" onClick={handleCopyAddress} variant="outline">
-                  {copiedAddress ? <ClipboardCheckIcon className="size-3.5" /> : <CopyIcon className="size-3.5" />}
-                  {copiedAddress ? "Copied" : "Copy address"}
-                </Button>
-              ) : null}
-              {connectError ? <span className="text-xs text-rose-600">{connectError.message}</span> : null}
-            </div>
-            <div className="mt-5 rounded-2xl bg-sky-50 p-4">
-              <div className="flex items-center justify-between gap-4">
-                <span className="font-mono text-xs text-slate-600">{selectedChain.name} balance</span>
-                <span className="font-mono text-xs font-bold text-slate-900">
-                  {walletBalance.isLoading ? "Loading" : formattedWalletBalance ?? "Not checked"}
-                </span>
+          <ReadinessCard eyebrow="Router" title="Unified Router balance">
+            <p>This shared server-side balance is visible to every visitor and belongs to `ZERO_G_ROUTER_API_KEY`.</p>
+            <div className="mt-5 rounded-2xl bg-sky-50 p-4 font-mono text-xs text-slate-700">
+              <div className="flex justify-between gap-4">
+                <span>Total</span>
+                <strong>{routerBalance?.totalBalanceZeroG ?? "Not configured"}</strong>
               </div>
-              <p className="mt-2 break-all font-mono text-xs text-slate-500">{effectiveAddress ?? "No wallet address connected"}</p>
-            </div>
-            {walletState.fundWallet && effectiveAddress ? (
-              <div className="mt-4 flex flex-wrap gap-2">
-                <Button className="rounded-full bg-sky-500 text-white hover:bg-sky-600" onClick={() => walletState.fundWallet?.(effectiveAddress, selectedChain.id)}>
-                  Open Privy funding
-                </Button>
-                {walletState.exportWallet ? (
-                  <Button className="rounded-full border-sky-200 bg-white/80 text-sky-950 hover:bg-sky-50" onClick={() => walletState.exportWallet?.(effectiveAddress)} variant="outline">
-                    Export embedded wallet
-                  </Button>
-                ) : null}
+              <div className="mt-2 flex justify-between gap-4 border-t border-sky-100 pt-2">
+                <span>Deposit</span>
+                <strong>{routerBalance?.depositBalanceZeroG ?? "Not configured"}</strong>
               </div>
-            ) : null}
+              <p className="mt-2 break-all text-slate-500">{routerBalance?.address ?? routerBalanceMessage ?? "Router balance unavailable"}</p>
+            </div>
+            <Button className="mt-4 rounded-full border-sky-200 bg-white/80 text-sky-950 hover:bg-sky-50" onClick={() => void loadRouterBalance()} variant="outline">
+              Refresh balance
+            </Button>
+            <Button className="mt-2 rounded-full border-sky-200 bg-white/80 text-sky-950 hover:bg-sky-50" onClick={() => void loadServerModels("0g-router-testnet")} variant="outline">
+              Refresh Router models
+            </Button>
           </ReadinessCard>
 
-          <ReadinessCard eyebrow="Chain" title={selectedChain.name}>
-            <p>{selectedChain.testnet ? "Galileo testnet uses chain ID 16602 and test funds." : "0G mainnet uses chain ID 16661 with production 0G balances."}</p>
-            <div className="mt-5 space-y-2 font-mono text-xs text-slate-600">
-              <p className="break-all">Chain ID&nbsp;&nbsp;{selectedChain.id}</p>
-              <p className="break-all">RPC&nbsp;&nbsp;{selectedChain.rpcUrls.default.http[0]}</p>
-              <p className="break-all">Explorer&nbsp;&nbsp;{selectedChain.blockExplorers?.default.url}</p>
+          <ReadinessCard eyebrow="Custom" title="OpenAI-compatible endpoint">
+            <div className="space-y-3">
+              <div className="space-y-1">
+                <Label>Base URL</Label>
+                <Input placeholder="https://api.openai.com/v1" value={customProvider.baseURL} onChange={(event) => setCustomProvider((current) => ({ ...current, baseURL: event.target.value }))} />
+              </div>
+              <div className="space-y-1">
+                <Label>API key</Label>
+                <Input placeholder="Stored in localStorage if saved" type="password" value={customProvider.apiKey} onChange={(event) => setCustomProvider((current) => ({ ...current, apiKey: event.target.value }))} />
+              </div>
+              <div className="space-y-1">
+                <Label>Fallback model</Label>
+                <Input placeholder="gpt-4o-mini" value={customProvider.model} onChange={(event) => setCustomProvider((current) => ({ ...current, model: event.target.value }))} />
+              </div>
             </div>
-            {isWalletReady && !isCorrectChain ? (
-              <Button
-                className="mt-5 rounded-full bg-sky-500 text-white hover:bg-sky-600"
-                disabled={switchStatus === "pending"}
-                onClick={() => {
-                  void handleSwitchSelectedChain();
-                }}
-              >
-                {switchStatus === "pending" ? <Loader2Icon className="size-4 animate-spin" /> : <NetworkIcon className="size-4" />}
-                Switch to {selectedChain.name}
+            <Alert className="mt-4 border-amber-200 bg-amber-50/70 text-amber-950">
+              <AlertCircleIcon className="size-4" />
+              <AlertTitle>localStorage warning</AlertTitle>
+              <AlertDescription>Saved custom API keys are readable by scripts on this origin. Avoid storing high-value production keys.</AlertDescription>
+            </Alert>
+            <div className="mt-4 flex flex-wrap gap-2">
+              <Button className="rounded-full bg-sky-500 text-white hover:bg-sky-600" onClick={handleSaveCustomProvider}>
+                <SaveIcon className="size-4" />
+                Save locally
               </Button>
-            ) : null}
-            {switchError ? <p className="mt-3 text-xs text-rose-600">{switchError.message}</p> : null}
+              <Button className="rounded-full border-sky-200 bg-white/80 text-sky-950 hover:bg-sky-50" onClick={() => void loadServerModels("custom-openai")} variant="outline">
+                Load custom models
+              </Button>
+            </div>
           </ReadinessCard>
 
-          <ReadinessCard className="bg-sky-100/70" eyebrow="Compute" title="Direct SDK inference">
-            <p>Provider list, metadata, auth headers, and funding state appear here before the chatbox accepts prompts.</p>
-            <div className="mt-5 rounded-2xl bg-sky-50 p-4">
-              <div className="flex items-center justify-between gap-4">
-                <span className="font-mono text-xs text-slate-600">Provider funds</span>
-                <span className="font-mono text-xs font-bold text-amber-700">{formatZeroG(compute.balance)}</span>
+          <ReadinessCard className="bg-sky-100/70" eyebrow="Direct" title="Wallet-signed providers">
+            <p>Direct mode uses per-provider sub-accounts and wallet-signed request headers. Router balance does not apply.</p>
+            <div className="mt-5 rounded-2xl bg-sky-50 p-4 font-mono text-xs text-slate-700">
+              <div className="flex justify-between gap-4">
+                <span>Services</span>
+                <strong>{directServices.length}</strong>
               </div>
-              <div className="mt-3 flex items-center justify-between gap-4 border-t border-sky-100 pt-3">
-                <span className="font-mono text-xs text-slate-600">Services</span>
-                <span className="font-mono text-xs font-bold text-slate-800">{compute.services.length}</span>
+              <div className="mt-2 flex justify-between gap-4 border-t border-sky-100 pt-2">
+                <span>Provider funds</span>
+                <strong>{formatZeroG(directBalance)}</strong>
               </div>
-              {compute.status === "initializing" || compute.status === "loading-services" ? (
-                <div className="mt-3 inline-flex items-center gap-2 font-mono text-xs text-sky-700">
-                  <Loader2Icon className="size-3 animate-spin" />
-                  Loading Direct SDK
-                </div>
-              ) : null}
-              {compute.error ? <p className="mt-3 break-words text-xs text-rose-600">{compute.error}</p> : null}
+              <div className="mt-2 flex justify-between gap-4 border-t border-sky-100 pt-2">
+                <span>{selectedChain.name} wallet</span>
+                <strong>{walletBalance.isLoading ? "Loading" : formattedWalletBalance ?? "Not checked"}</strong>
+              </div>
+              <p className="mt-2 break-words text-slate-500">{directError ?? selectedDirectService?.provider ?? "No Direct provider loaded"}</p>
             </div>
+            <Button className="mt-4 rounded-full border-sky-200 bg-white/80 text-sky-950 hover:bg-sky-50" onClick={() => void loadDirectServices()} variant="outline">
+              Load Direct services
+            </Button>
           </ReadinessCard>
         </section>
       </div>
@@ -771,7 +846,6 @@ function HomePageClientWithPrivy() {
       walletState={{
         authenticated,
         effectiveAddress: privyWallet?.address,
-        effectiveChainId: Number(privyWallet?.chainId?.replace("eip155:", "") ?? 0),
         exportWallet: (address) => {
           void exportWallet(address ? { address } : undefined);
         },
@@ -789,7 +863,6 @@ function HomePageClientWithPrivy() {
         logoutWallet: () => {
           void logout();
         },
-        privyWallet,
       }}
     />
   );
@@ -807,7 +880,6 @@ function HomePageClientWithoutPrivy() {
       }}
       walletState={{
         authenticated: false,
-        effectiveChainId: 0,
         hasPrivy: false,
         isWalletReady: false,
         loginWithPrivy: () => {},
