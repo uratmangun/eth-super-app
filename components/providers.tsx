@@ -41,7 +41,7 @@ export function Providers({ children }: { children: ReactNode }) {
           },
           showWalletUIs: true,
         },
-        loginMethods: ["email", "wallet", "google", "passkey"],
+        loginMethods: ["email", "wallet"],
         supportedChains: [...zeroGChains],
       }}
     >

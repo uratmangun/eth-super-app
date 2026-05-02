@@ -9,7 +9,7 @@ import {
   SaveIcon,
   WalletIcon,
 } from "lucide-react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useFundWallet, usePrivy, useWallets } from "@privy-io/react-auth";
 import { useSetActiveWallet } from "@privy-io/wagmi";
 import { formatUnits } from "viem";
@@ -221,6 +221,35 @@ function ReadinessCard({
   );
 }
 
+function StatusLine({
+  kind,
+  text,
+}: {
+  kind: "loading" | "ready" | "error";
+  text: string;
+}) {
+  return (
+    <div
+      className={cn(
+        "flex items-center gap-2 font-mono text-xs",
+        kind === "loading" && "text-sky-700",
+        kind === "ready" && "text-slate-500",
+        kind === "error" && "text-rose-600",
+      )}
+    >
+      <span
+        className={cn(
+          "inline-block size-2 rounded-full",
+          kind === "loading" && "animate-pulse bg-sky-500",
+          kind === "ready" && "bg-emerald-500",
+          kind === "error" && "bg-rose-500",
+        )}
+      />
+      {text}
+    </div>
+  );
+}
+
 function HomePageContent({ loginMode, walletState }: { loginMode: LoginMode; walletState: WalletState }) {
   const connection = useConnection();
   const { connect } = useConnect();
@@ -233,7 +262,7 @@ function HomePageContent({ loginMode, walletState }: { loginMode: LoginMode; wal
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [modelsConfigured, setModelsConfigured] = useState(false);
   const [modelsError, setModelsError] = useState<string | null>(null);
-  const [modelsLoading, setModelsLoading] = useState(false);
+  const [modelsLoading, setModelsLoading] = useState(true);
   const [routerModels, setRouterModels] = useState<UiModel[]>([]);
   const [customModels, setCustomModels] = useState<UiModel[]>([]);
   const [directServices, setDirectServices] = useState<ZeroGDirectService[]>([]);
@@ -246,6 +275,7 @@ function HomePageContent({ loginMode, walletState }: { loginMode: LoginMode; wal
   const [routerBalance, setRouterBalance] = useState<RouterBalance | null>(null);
   const [routerBalanceMessage, setRouterBalanceMessage] = useState<string | null>(null);
   const [isSending, setIsSending] = useState(false);
+  const hasBootstrappedRouterRef = useRef(false);
 
   const effectiveAddress = walletState.effectiveAddress ?? connection.address;
   const isWalletReady = walletState.isWalletReady || Boolean(connection.address);
@@ -392,6 +422,19 @@ function HomePageContent({ loginMode, walletState }: { loginMode: LoginMode; wal
       setModelsLoading(false);
     }
   }, [connectorClient, isWalletReady, selectedChain.id]);
+
+  useEffect(() => {
+    if (hasBootstrappedRouterRef.current) {
+      return;
+    }
+
+    hasBootstrappedRouterRef.current = true;
+
+    setTimeout(() => {
+      void loadRouterBalance();
+      void loadServerModels("0g-router-testnet");
+    }, 0);
+  }, [loadRouterBalance, loadServerModels]);
 
   const blockingReason = useMemo(() => {
     if (providerMode === "0g-direct") {
@@ -734,6 +777,30 @@ function HomePageContent({ loginMode, walletState }: { loginMode: LoginMode; wal
                     <PromptInputSubmit disabled={Boolean(blockingReason) || isSending} status={isSending ? "streaming" : "ready"} />
                   </PromptInputFooter>
                 </PromptInput>
+                {providerMode === "0g-router-testnet" && modelsLoading ? (
+                  <StatusLine kind="loading" text="Loading Router models..." />
+                ) : null}
+                {providerMode === "0g-router-testnet" && !modelsLoading && !modelsError && activeModels.length > 0 ? (
+                  <StatusLine kind="ready" text="Router models ready" />
+                ) : null}
+                {providerMode === "custom-openai" && modelsLoading ? (
+                  <StatusLine kind="loading" text="Loading custom provider models..." />
+                ) : null}
+                {providerMode === "custom-openai" && !modelsLoading && !modelsError && activeModels.length > 0 ? (
+                  <StatusLine kind="ready" text="Custom provider models ready" />
+                ) : null}
+                {providerMode === "custom-openai" && !modelsLoading && modelsError ? (
+                  <StatusLine kind="error" text={modelsError} />
+                ) : null}
+                {providerMode === "0g-direct" && modelsLoading ? (
+                  <StatusLine kind="loading" text="Loading Direct SDK services..." />
+                ) : null}
+                {providerMode === "0g-direct" && !modelsLoading && !directError && directServices.length > 0 ? (
+                  <StatusLine kind="ready" text="Direct SDK services ready" />
+                ) : null}
+                {providerMode === "0g-direct" && !modelsLoading && directError ? (
+                  <StatusLine kind="error" text={directError} />
+                ) : null}
               </div>
             </CardContent>
           </Card>
@@ -753,6 +820,8 @@ function HomePageContent({ loginMode, walletState }: { loginMode: LoginMode; wal
               </div>
               <p className="mt-2 break-all text-slate-500">{routerBalance?.address ?? routerBalanceMessage ?? "Router balance unavailable"}</p>
             </div>
+            {!routerBalance && routerBalanceMessage ? <div className="mt-3"><StatusLine kind="error" text={routerBalanceMessage} /></div> : null}
+            {routerBalance ? <div className="mt-3"><StatusLine kind="ready" text="Router balance loaded" /></div> : null}
             <Button className="mt-4 rounded-full border-sky-200 bg-white/80 text-sky-950 hover:bg-sky-50" onClick={() => void loadRouterBalance()} variant="outline">
               Refresh balance
             </Button>
@@ -790,6 +859,9 @@ function HomePageContent({ loginMode, walletState }: { loginMode: LoginMode; wal
                 Load custom models
               </Button>
             </div>
+            {providerMode === "custom-openai" && !modelsLoading && !modelsError && activeModels.length === 0 && customProvider.baseURL.trim() ? (
+              <div className="mt-3"><StatusLine kind="error" text="No chatbot models loaded yet. Load models or rely on the fallback model." /></div>
+            ) : null}
           </ReadinessCard>
 
           <ReadinessCard className="bg-sky-100/70" eyebrow="Direct" title="Wallet-signed providers">
@@ -812,6 +884,9 @@ function HomePageContent({ loginMode, walletState }: { loginMode: LoginMode; wal
             <Button className="mt-4 rounded-full border-sky-200 bg-white/80 text-sky-950 hover:bg-sky-50" onClick={() => void loadDirectServices()} variant="outline">
               Load Direct services
             </Button>
+            {providerMode === "0g-direct" && !modelsLoading && !directError && directServices.length === 0 ? (
+              <div className="mt-3"><StatusLine kind="error" text="No Direct chatbot services loaded yet." /></div>
+            ) : null}
           </ReadinessCard>
         </section>
       </div>
