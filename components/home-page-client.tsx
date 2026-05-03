@@ -9,6 +9,8 @@ import {
   SaveIcon,
   WalletIcon,
 } from "lucide-react";
+import { useChat } from "@ai-sdk/react";
+import { DefaultChatTransport, lastAssistantMessageIsCompleteWithToolCalls } from "ai";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useFundWallet, usePrivy, useWallets } from "@privy-io/react-auth";
 import { useSetActiveWallet } from "@privy-io/wagmi";
@@ -42,8 +44,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
+import { Tool, ToolContent, ToolHeader, ToolInput, ToolOutput } from "@/components/ai-elements/tool";
 import { zeroGChains, zeroGTestnet } from "@/lib/chains";
 import { clientToSigner } from "@/lib/ethers-adapter";
+import type { ChatUiMessage } from "@/lib/chat-shared";
 import type { UiModel } from "@/lib/models";
 import { cn } from "@/lib/utils";
 import {
@@ -56,12 +60,6 @@ import {
 } from "@/lib/zero-g-direct";
 
 type ProviderMode = "0g-router-testnet" | "0g-direct" | "custom-openai";
-
-type ChatMessage = {
-  id: string;
-  role: "user" | "assistant";
-  content: string;
-};
 
 type RouterBalance = {
   address: string;
@@ -95,6 +93,7 @@ type LoginMode = {
 };
 
 const customProviderStorageKey = "eth-super-app.custom-openai-provider";
+const defaultRouterModel = "llama-3.3-70b-instruct";
 const privyAppId = process.env.NEXT_PUBLIC_PRIVY_APP_ID;
 
 const providerLabels: Record<ProviderMode, string> = {
@@ -104,10 +103,11 @@ const providerLabels: Record<ProviderMode, string> = {
 };
 
 const suggestedPrompts = [
-  "Explain the difference between Router and Direct 0G Compute.",
-  "List the live chatbot models available in this provider mode.",
-  "Write a hello-world prompt for the selected model.",
-  "What balance or API key setup does this provider mode require?",
+  "Summarize 0G Router vs Direct using the official docs.",
+  "Explain Uniswap v4 hooks in simple terms.",
+  "What is Gensyn AXL and how does its local HTTP bridge work?",
+  "How does ENS multichain resolution work?",
+  "What problem does KeeperHub solve for agentic wallets and workflows?",
 ];
 
 function shortAddress(address?: string) {
@@ -135,29 +135,51 @@ function getErrorMessage(error: unknown) {
   return error instanceof Error ? error.message : "Unknown error";
 }
 
-function extractAssistantTextFromUIMessageStream(streamText: string) {
-  const chunks = streamText
-    .split("\n")
-    .map((line) => line.trim())
-    .filter((line) => line.startsWith("data:"))
-    .map((line) => line.slice(5).trim())
-    .filter((line) => line && line !== "[DONE]");
-
-  let assistantText = "";
-
-  for (const chunk of chunks) {
-    try {
-      const payload = JSON.parse(chunk) as { delta?: string; type?: string };
-
-      if (payload.type === "text-delta" && typeof payload.delta === "string") {
-        assistantText += payload.delta;
-      }
-    } catch {
-      continue;
-    }
+function renderToolOutput(output: unknown) {
+  if (!output || typeof output !== "object") {
+    return <pre>{JSON.stringify(output, null, 2)}</pre>;
   }
 
-  return assistantText.trim();
+  const data = output as Record<string, unknown>;
+
+  return (
+    <div className="space-y-2">
+      {typeof data.title === "string" && data.title ? <p><strong>Title:</strong> {data.title}</p> : null}
+      {typeof data.finalUrl === "string" ? <p><strong>Final URL:</strong> <span className="break-all">{data.finalUrl}</span></p> : null}
+      {typeof data.contentFormat === "string" ? <p><strong>Format:</strong> {data.contentFormat}</p> : null}
+      {typeof data.textPreview === "string" ? <p><strong>Preview:</strong> {data.textPreview}</p> : null}
+      {typeof data.outputPath === "string" ? <p><strong>Saved content:</strong> <span className="break-all">{data.outputPath}</span></p> : null}
+      {typeof data.contentLength === "number" ? <p><strong>Content length:</strong> {data.contentLength}</p> : null}
+      {typeof data.htmlLength === "number" ? <p><strong>HTML length:</strong> {data.htmlLength}</p> : null}
+      {typeof data.markdownLength === "number" ? <p><strong>Markdown length:</strong> {data.markdownLength}</p> : null}
+    </div>
+  );
+}
+
+function isToolPart(part: unknown): part is {
+  errorText?: string;
+  input?: unknown;
+  output?: unknown;
+  state:
+    | "input-streaming"
+    | "input-available"
+    | "output-available"
+    | "output-error"
+    | "output-denied";
+  toolCallId: string;
+  type: string;
+} {
+  return (
+    typeof part === "object" &&
+    part !== null &&
+    "type" in part &&
+    typeof part.type === "string" &&
+    part.type.startsWith("tool-") &&
+    "toolCallId" in part &&
+    typeof part.toolCallId === "string" &&
+    "state" in part &&
+    typeof part.state === "string"
+  );
 }
 
 function loadSavedCustomProvider(): CustomProviderConfig {
@@ -259,7 +281,6 @@ function HomePageContent({ loginMode, walletState }: { loginMode: LoginMode; wal
   const [providerMode, setProviderMode] = useState<ProviderMode>("0g-router-testnet");
   const [selectedChainId, setSelectedChainId] = useState<number>(zeroGTestnet.id);
   const [copiedAddress, setCopiedAddress] = useState(false);
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [modelsConfigured, setModelsConfigured] = useState(false);
   const [modelsError, setModelsError] = useState<string | null>(null);
   const [modelsLoading, setModelsLoading] = useState(true);
@@ -269,24 +290,17 @@ function HomePageContent({ loginMode, walletState }: { loginMode: LoginMode; wal
   const [directBroker, setDirectBroker] = useState<Awaited<ReturnType<typeof createZeroGDirectBroker>> | null>(null);
   const [directBalance, setDirectBalance] = useState<bigint | null>(null);
   const [directError, setDirectError] = useState<string | null>(null);
-  const [selectedModel, setSelectedModel] = useState("");
+  const [selectedModels, setSelectedModels] = useState<Record<ProviderMode, string>>({
+    "0g-direct": "",
+    "0g-router-testnet": "",
+    "custom-openai": "",
+  });
   const [customProvider, setCustomProvider] = useState<CustomProviderConfig>(() => loadSavedCustomProvider());
   const [requestError, setRequestError] = useState<string | null>(null);
   const [routerBalance, setRouterBalance] = useState<RouterBalance | null>(null);
   const [routerBalanceMessage, setRouterBalanceMessage] = useState<string | null>(null);
-  const [isSending, setIsSending] = useState(false);
   const hasBootstrappedRouterRef = useRef(false);
-
-  const effectiveAddress = walletState.effectiveAddress ?? connection.address;
-  const isWalletReady = walletState.isWalletReady || Boolean(connection.address);
-  const selectedChain = zeroGChains.find((chain) => chain.id === selectedChainId) ?? zeroGTestnet;
-  const walletBalance = useBalance({
-    address: effectiveAddress as `0x${string}` | undefined,
-    chainId: selectedChain.id,
-    query: {
-      enabled: Boolean(effectiveAddress),
-    },
-  });
+  const hasBootstrappedCustomProviderRef = useRef(false);
 
   const activeModels = useMemo(() => {
     if (providerMode === "custom-openai") {
@@ -309,9 +323,75 @@ function HomePageContent({ loginMode, walletState }: { loginMode: LoginMode; wal
     return routerModels.filter((model) => model.type === "chatbot");
   }, [customModels, directServices, providerMode, routerModels]);
 
+  const selectedModel = selectedModels[providerMode];
+  const fallbackModel = providerMode === "0g-router-testnet" ? defaultRouterModel : customProvider.model;
   const currentModel = activeModels.some((model) => model.id === selectedModel)
     ? selectedModel
-    : customProvider.model || activeModels[0]?.id || "";
+    : activeModels[0]?.id || fallbackModel || "";
+  const requestModel = providerMode === "custom-openai" ? currentModel || customProvider.model || "" : currentModel || fallbackModel || "";
+  const chatRequestRef = useRef({
+    apiKey: customProvider.apiKey,
+    baseURL: customProvider.baseURL,
+    model: requestModel,
+    providerMode,
+  });
+  chatRequestRef.current = {
+    apiKey: customProvider.apiKey,
+    baseURL: customProvider.baseURL,
+    model: requestModel,
+    providerMode,
+  };
+
+  const transport = useMemo(
+    () =>
+      new DefaultChatTransport<ChatUiMessage>({
+        api: "/api/chat",
+        prepareSendMessagesRequest: ({ body, messages: nextMessages, api }) => {
+          const requestConfig = chatRequestRef.current;
+
+          return {
+            api,
+            body: {
+              ...body,
+              apiKey: requestConfig.providerMode === "custom-openai" ? requestConfig.apiKey : undefined,
+              baseURL: requestConfig.providerMode === "custom-openai" ? requestConfig.baseURL : undefined,
+              messages: nextMessages,
+              model: requestConfig.model || undefined,
+              providerMode: requestConfig.providerMode,
+            },
+          };
+        },
+      }),
+    [],
+  );
+
+  const {
+    messages,
+    sendMessage,
+    status,
+  } = useChat<ChatUiMessage>({
+    messages: [],
+    experimental_throttle: 16,
+    onError: (nextError) => {
+      setRequestError(nextError.message);
+    },
+    sendAutomaticallyWhen: ({ messages: nextMessages }) =>
+      lastAssistantMessageIsCompleteWithToolCalls({ messages: nextMessages }),
+    transport,
+  });
+
+  const isSending = status === "submitted" || status === "streaming";
+
+  const effectiveAddress = walletState.effectiveAddress ?? connection.address;
+  const isWalletReady = walletState.isWalletReady || Boolean(connection.address);
+  const selectedChain = zeroGChains.find((chain) => chain.id === selectedChainId) ?? zeroGTestnet;
+  const walletBalance = useBalance({
+    address: effectiveAddress as `0x${string}` | undefined,
+    chainId: selectedChain.id,
+    query: {
+      enabled: Boolean(effectiveAddress),
+    },
+  });
   const selectedDirectService =
     providerMode === "0g-direct"
       ? directServices.find((service) => service.model === currentModel) ?? directServices[0] ?? null
@@ -351,10 +431,21 @@ function HomePageContent({ loginMode, walletState }: { loginMode: LoginMode; wal
         setModelsConfigured(payload.configured);
         setModelsError(payload.message);
 
+        const nextModels = payload.data ?? [];
+
         if (mode === "custom-openai") {
-          setCustomModels(payload.data ?? []);
+          setCustomModels(nextModels);
         } else {
-          setRouterModels(payload.data ?? []);
+          setRouterModels(nextModels);
+        }
+
+        const firstChatbotModel = nextModels.find((model) => model.type === "chatbot" || model.type === "unknown");
+
+        if (firstChatbotModel) {
+          setSelectedModels((current) => ({
+            ...current,
+            [mode]: nextModels.some((model) => model.id === current[mode]) ? current[mode] : firstChatbotModel.id,
+          }));
         }
       } catch (error) {
         setModelsConfigured(false);
@@ -435,6 +526,22 @@ function HomePageContent({ loginMode, walletState }: { loginMode: LoginMode; wal
       void loadServerModels("0g-router-testnet");
     }, 0);
   }, [loadRouterBalance, loadServerModels]);
+
+  useEffect(() => {
+    if (hasBootstrappedCustomProviderRef.current) {
+      return;
+    }
+
+    if (!customProvider.baseURL.trim()) {
+      return;
+    }
+
+    hasBootstrappedCustomProviderRef.current = true;
+
+    setTimeout(() => {
+      void loadServerModels("custom-openai");
+    }, 0);
+  }, [customProvider.baseURL, loadServerModels]);
 
   const blockingReason = useMemo(() => {
     if (providerMode === "0g-direct") {
@@ -519,15 +626,6 @@ function HomePageContent({ loginMode, walletState }: { loginMode: LoginMode; wal
         return;
       }
 
-      const userMessage: ChatMessage = {
-        content,
-        id: crypto.randomUUID(),
-        role: "user",
-      };
-      const nextMessages = [...messages, userMessage];
-
-      setMessages(nextMessages);
-      setIsSending(true);
       setRequestError(null);
 
       try {
@@ -536,75 +634,27 @@ function HomePageContent({ loginMode, walletState }: { loginMode: LoginMode; wal
             throw new Error("Direct SDK provider is not ready.");
           }
 
-          const directMessages: ZeroGDirectMessage[] = nextMessages.map((message) => ({
-            content: message.content,
+          const directMessages: ZeroGDirectMessage[] = messages
+            .concat([{ id: crypto.randomUUID(), parts: [{ text: content, type: "text" }], role: "user" } as ChatUiMessage])
+            .map((message) => ({
+            content: message.parts.filter((part) => part.type === "text").map((part) => part.text).join("\n"),
             role: message.role,
           }));
-          const result = await sendZeroGDirectChatCompletion({
+          await sendZeroGDirectChatCompletion({
             broker: directBroker,
             messages: directMessages,
             model: currentModel,
             providerAddress: selectedDirectService.provider,
           });
 
-          setMessages((current) => [...current, { content: result.content, id: crypto.randomUUID(), role: "assistant" }]);
           return;
         }
-
-        const response = await fetch("/api/chat", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            apiKey: providerMode === "custom-openai" ? customProvider.apiKey : undefined,
-            baseURL: providerMode === "custom-openai" ? customProvider.baseURL : undefined,
-            messages: nextMessages.map((message) => ({
-              id: message.id,
-              parts: [{ text: message.content, type: "text" }],
-              role: message.role,
-            })),
-            model: currentModel,
-            providerMode,
-          }),
-        });
-
-        if (!response.ok) {
-          const payload = (await response.json().catch(() => null)) as { error?: string } | null;
-          throw new Error(payload?.error || `Chat request failed with status ${response.status}`);
-        }
-
-        const reader = response.body?.getReader();
-        if (!reader) {
-          throw new Error("Response stream was empty.");
-        }
-
-        const decoder = new TextDecoder();
-        let aggregated = "";
-
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) {
-            break;
-          }
-
-          aggregated += decoder.decode(value, { stream: true });
-        }
-
-        const assistantText = extractAssistantTextFromUIMessageStream(aggregated);
-
-        if (!assistantText) {
-          throw new Error("Provider did not return assistant text.");
-        }
-
-        setMessages((current) => [...current, { content: assistantText, id: crypto.randomUUID(), role: "assistant" }]);
+        await sendMessage({ text: content });
       } catch (error) {
         setRequestError(getErrorMessage(error));
-      } finally {
-        setIsSending(false);
       }
     },
-    [blockingReason, currentModel, customProvider.apiKey, customProvider.baseURL, directBroker, isSending, messages, providerMode, selectedDirectService],
+    [blockingReason, currentModel, directBroker, isSending, messages, providerMode, selectedDirectService, sendMessage],
   );
 
   return (
@@ -687,7 +737,7 @@ function HomePageContent({ loginMode, walletState }: { loginMode: LoginMode; wal
             </Badge>
             <div className="space-y-5">
               <h2 className="max-w-[9ch] text-5xl font-black leading-[0.95] tracking-[-0.06em] text-slate-950 md:text-7xl">Choose your inference rail.</h2>
-              <p className="max-w-xl text-lg leading-8 text-slate-600">Use the shared 0G Router, wallet-signed Direct providers, or your own OpenAI-compatible endpoint without changing the chat surface.</p>
+              <p className="max-w-xl text-lg leading-8 text-slate-600">Use Router, Direct SDK, or your own OpenAI-compatible endpoint to research 0G, Uniswap, Gensyn, ENS, and KeeperHub from one docs-focused chat surface.</p>
             </div>
           </aside>
 
@@ -695,8 +745,8 @@ function HomePageContent({ loginMode, walletState }: { loginMode: LoginMode; wal
             <CardHeader className="border-b border-sky-100 bg-white/65 px-6 py-6">
               <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
                 <div>
-                  <CardTitle className="text-2xl tracking-tight text-slate-950">Multi-provider Chatbox</CardTitle>
-                  <p className="mt-1 text-sm text-slate-600">The model selector stays visible and follows the selected provider mode.</p>
+                  <CardTitle className="text-2xl tracking-tight text-slate-950">Docs Research Chatbox</CardTitle>
+                  <p className="mt-1 text-sm text-slate-600">The model selector stays visible and follows the selected provider mode while the assistant focuses on the supported documentation sources.</p>
                 </div>
                 <Badge className="w-fit max-w-full gap-2 rounded-full border-sky-200 bg-sky-50 px-3 py-2 font-mono text-xs text-slate-800" variant="outline">
                   <StatusDot tone={activeModels.length > 0 ? "green" : modelsLoading ? "amber" : "red"} />
@@ -718,11 +768,11 @@ function HomePageContent({ loginMode, walletState }: { loginMode: LoginMode; wal
                 </Alert>
               ) : null}
             </CardHeader>
-            <CardContent className="flex min-h-[620px] flex-col gap-0 p-0">
-              <Conversation className="min-h-0 flex-1">
+            <CardContent className="flex h-[620px] flex-col gap-0 p-0">
+              <Conversation className="min-h-0 flex-1 overflow-hidden">
                 <ConversationContent>
                   {messages.length === 0 ? (
-                    <ConversationEmptyState description="Select Router, Direct, or Custom mode; then pick a model below." icon={<BotIcon className="size-5" />} title="One prompt input, three provider modes">
+                    <ConversationEmptyState description="Ask about 0G, Uniswap, Gensyn, ENS, or KeeperHub. The selected provider and model control how the answer is generated." icon={<BotIcon className="size-5" />} title="Research across five documentation ecosystems">
                       <div className="grid w-full max-w-3xl gap-3 md:grid-cols-2">
                         {suggestedPrompts.map((prompt) => (
                           <Button
@@ -742,7 +792,29 @@ function HomePageContent({ loginMode, walletState }: { loginMode: LoginMode; wal
                   {messages.map((message) => (
                     <Message from={message.role} key={message.id}>
                       <MessageContent>
-                        <MessageResponse>{message.content}</MessageResponse>
+                        {message.parts.map((part, index) => {
+                          if (part.type === "text") {
+                            return <MessageResponse key={`${message.id}-text-${index}`}>{part.text}</MessageResponse>;
+                          }
+
+                          if (!isToolPart(part)) {
+                            return null;
+                          }
+
+                          const toolName = part.type.replace(/^tool-/, "");
+
+                          return (
+                            <Tool key={`${message.id}-tool-${part.toolCallId}`}>
+                              <ToolHeader state={part.state} title={toolName} type={part.type} />
+                              <ToolContent>
+                                <ToolInput input={part.input ?? {}} />
+                                {(part.state === "output-available" || part.state === "output-error") && (
+                                  <ToolOutput errorText={part.errorText} output={part.output ? renderToolOutput(part.output) : undefined} />
+                                )}
+                              </ToolContent>
+                            </Tool>
+                          );
+                        })}
                       </MessageContent>
                     </Message>
                   ))}
@@ -757,7 +829,7 @@ function HomePageContent({ loginMode, walletState }: { loginMode: LoginMode; wal
                   </PromptInputBody>
                   <PromptInputFooter>
                     <PromptInputTools>
-                      <PromptInputSelect onValueChange={(value) => setSelectedModel(String(value))} value={currentModel}>
+                      <PromptInputSelect onValueChange={(value) => setSelectedModels((current) => ({ ...current, [providerMode]: String(value) }))} value={currentModel}>
                         <PromptInputSelectTrigger className="min-w-0 max-w-[min(26rem,calc(100vw-8rem))] rounded-md px-2.5 text-xs text-slate-600">
                           <span className="truncate">{currentModel || "Select model"}</span>
                         </PromptInputSelectTrigger>
