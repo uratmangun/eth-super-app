@@ -66,7 +66,7 @@ That trace frame is not part of the OpenAI streaming schema, so the app proxies 
 
 `custom-openai` lets users provide:
 
-- Base URL, for example `https://cliproxyapi.uratmangun.ovh/v1`
+- Base URL, for example ``
 - API key
 - Fallback model, for example `gpt-5.5` or `kilo-auto/free`
 
