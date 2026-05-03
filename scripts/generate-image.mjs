@@ -18,7 +18,8 @@ export async function generateImage({
     throw new Error('fetch is not available; use Node.js 18+');
   }
 
-  const endpoint = `${baseUrl.replace(/\/+$/, '')}/v1/images/generations`;
+  const root = baseUrl.replace(/\/+$/, '').replace(/\/v1$/i, '');
+  const endpoint = `${root}/v1/images/generations`;
   const res = await fetchImpl(endpoint, {
     method: 'POST',
     headers: {
@@ -53,9 +54,10 @@ export async function generateImage({
 if (import.meta.url === pathToFileURL(process.argv[1]).href) {
   const prompt = process.argv[2] ?? 'A tiny robot painting a sunrise';
   const outputPath = process.argv[3] ?? 'output.png';
+  const size = process.argv[4] ?? '1024x1024';
 
   try {
-    const written = await generateImage({ prompt, outputPath });
+    const written = await generateImage({ prompt, outputPath, size });
     console.log(`wrote ${written}`);
   } catch (error) {
     console.error(error instanceof Error ? error.message : error);
